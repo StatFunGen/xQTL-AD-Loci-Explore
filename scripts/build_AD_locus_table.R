@@ -28,7 +28,9 @@ ROOTP   <- function(...) file.path(PROJECT_ROOT, ...)
 ## Repository layout: config/ holds the metadata tables, gene_prio_utils.R sits
 ## beside this script. STAGING holds three precomputed tables that are too large
 ## to distribute with the code; set AD_LOCI_STAGING to wherever they are.
-CONFIG <- file.path(REPO, 'config')
+## config/ ships sanitized: 20 Path cells carry placeholders. Point
+## AD_LOCI_CONFIG at a private copy with real paths to run from raw inputs.
+CONFIG <- Sys.getenv('AD_LOCI_CONFIG', unset = file.path(REPO, 'config'))
 STAGING <- Sys.getenv('AD_LOCI_STAGING',
   unset = ROOTP('repro/main_text/5_AD_xQTL_genes_cis_trans/staging/gene_priorization_table'))
 cat('PROJECT_ROOT:', PROJECT_ROOT, '
