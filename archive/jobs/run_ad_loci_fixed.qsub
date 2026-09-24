@@ -1,0 +1,47 @@
+#!/bin/bash -l
+## Rebuild the AD loci table.   qsub run_ad_loci_pipeline.qsub
+## Output dir defaults to out_<today>; override:  qsub -v AD_LOCI_OUT=/path ...
+#$ -P xqtl
+#$ -N adloci_fixed
+#$ -l h_rt=24:00:00
+#$ -pe omp 8
+#$ -l mem_per_core=12G
+#$ -j y
+#$ -o ${AD_LOCI_ROOT:?set AD_LOCI_ROOT}/logs/adloci_$JOB_ID.log
+#$ -V
+ROOT=${AD_LOCI_ROOT:?set AD_LOCI_ROOT}
+cd $ROOT; mkdir -p logs
+OUT=${AD_LOCI_OUT:-$ROOT/out_$(date +%Y%m%d)}
+STG=$ROOT/repro/main_text/5_AD_xQTL_genes_cis_trans/staging/gene_priorization_table
+mkdir -p $OUT
+## provenance: snapshot the exact config this build used
+cp $STG/metadata_analysis.csv  $OUT/_used_metadata_analysis.csv
+cp $STG/contexts_metadata.csv  $OUT/_used_contexts_metadata.csv
+{ echo "built_at,$(date -Iseconds)"
+  echo "built_by,$USER"
+  echo "host,$(hostname)"
+  echo "out,$OUT"
+  echo "n_gwas_studies,$(awk -F, 'NR>1 && $5=="AD_GWAS_finemapping"' $STG/metadata_analysis.csv | wc -l)"
+  echo "metadata_rows,$(tail -n +2 $STG/metadata_analysis.csv | wc -l)"
+  echo "toploci_sources,$(awk -F, 'NR>1 && $6 ~ /top_?loci\.bed/ {print $5}' $STG/metadata_analysis.csv | sort -u | tr '\n' ' ')"
+} > $OUT/_provenance.csv
+## ---- seed cached GWAS credible-set harmonisation artifacts ----------------
+## The harmonisation block in the R script is guarded by
+##   if (update_gwas_cs_harmo | !file.exists(<converged file>)) { ... }
+## with update_gwas_cs_harmo=FALSE, so a build that has these two files present
+## skips it. The 20260911 221-locus release skipped it; the block is latent and
+## does not currently run to completion. Reuse that release's artifacts so this
+## build takes the same path. NOTE: the copies in $STG are the 190-locus
+## (17:30) versions - use the loci221 release copies, not $STG.
+## NO SEEDING. complete_ADlocus_level_summary_fixed.R line 694 gates the whole
+## GWAS-CS harmonization + coloc block on !file.exists(res_all_single_gwas_...converged.csv.gz),
+## so leaving out/ empty makes it recompute all five artifacts from the ACTIVE
+## 8-study metadata. Seeding the loci221 copies (11 studies) and trimming them
+## afterwards is NOT equivalent: their credible-set harmonization was done across
+## all 11 studies, and dropping rows cannot undo that merge.
+echo "START $(date)  out=$OUT"
+AD_LOCI_OUT=$OUT ~/.pixi/bin/Rscript complete_ADlocus_level_summary_fixed.R
+rc=$?
+echo "n_loci,$(zcat $OUT/res_AD_variants_xQTL.csv.gz 2>/dev/null | awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="ADlocusID")c=i} NR>1{if($c!="")a[$c]} END{print length(a)}')" >> $OUT/_provenance.csv
+echo "END   $(date)  exit=$rc"
+exit "$rc"

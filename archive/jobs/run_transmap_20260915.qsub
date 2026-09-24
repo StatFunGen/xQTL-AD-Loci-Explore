@@ -1,0 +1,13 @@
+#!/bin/bash -l
+#$ -P xqtl
+#$ -N transmap915
+#$ -l h_rt=24:00:00
+#$ -pe omp 8
+#$ -l mem_per_core=16G
+#$ -j y
+#$ -o ${AD_LOCI_ROOT:?set AD_LOCI_ROOT}/logs/transmap_20260915.log
+cd ${AD_LOCI_ROOT:?set AD_LOCI_ROOT}
+echo "START $(date)  host=$(hostname)"
+~/.pixi/bin/Rscript complete_ADlocus_level_summary_SCC2_20260915.R
+rc=$?
+echo "END   $(date)  exit=$rc"

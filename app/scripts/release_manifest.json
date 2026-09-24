@@ -1,0 +1,71 @@
+{
+  "measured": {
+    "chroms": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22"
+    ],
+    "contexts": 53,
+    "contexts_not_in_map": [],
+    "ctx_map_entries": 53,
+    "data_rows": 4122,
+    "gene_tier_rows": 508,
+    "genes": 585,
+    "genes_t1_t5": 416,
+    "genes_t1_t6": 508,
+    "legacy_name_hits": 0,
+    "loci": 188,
+    "locus_summary_rows": 188,
+    "modalities": [
+      "caQTL",
+      "eQTL",
+      "gpQTL",
+      "haQTL",
+      "mQTL",
+      "pQTL",
+      "sQTL"
+    ],
+    "ordered_tokens": 13020,
+    "ordered_tokens_na": 139,
+    "ordered_tokens_parsed": 12881,
+    "significance": {
+      "": 259,
+      "genome wide": 1615,
+      "ns": 1706,
+      "suggestive": 542
+    },
+    "tier_counts": {
+      "T1": 343,
+      "T2": 180,
+      "T3": 456,
+      "T4": 635,
+      "T5": 1764,
+      "T6": 258
+    },
+    "variant_rows": 7492
+  },
+  "ui": {
+    "credible_sets_kpi": "263,893",
+    "credible_sets_prose": "263,893",
+    "modality_word": "seven"
+  }
+}

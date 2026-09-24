@@ -1,0 +1,25 @@
+# outputs
+adloci_e2e_*.log
+out_*/
+*.Rproj.user
+.Rhistory
+.RData
+.Rapp.history
+
+# deployment
+rsconnect/
+deploy*.log
+
+# python
+__pycache__/
+*.pyc
+
+# backups and scratch
+*.bak
+*.bak_*
+*.snapshot_*
+backups/
+downloads/
+
+# os
+.DS_Store

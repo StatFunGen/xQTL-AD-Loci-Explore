@@ -1,0 +1,53 @@
+#!/bin/bash -l
+## End-to-end rebuild of the AD loci table from this repository.
+##   qsub scripts/run_pipeline.qsub
+## Override the output directory:  qsub -v AD_LOCI_OUT=/path scripts/run_pipeline.qsub
+#$ -P xqtl
+#$ -N adloci_e2e
+#$ -l h_rt=24:00:00
+#$ -pe omp 8
+#$ -l mem_per_core=12G
+#$ -j y
+#$ -o adloci_e2e_$JOB_ID.log
+#$ -V
+
+## Repository root. SGE copies the job script to a spool directory, so this
+## cannot be derived from the script's own path; it is the directory the job
+## was submitted from, or AD_LOCI_REPO if set.
+REPO=${AD_LOCI_REPO:-${SGE_O_WORKDIR:-$PWD}}
+if [ ! -f "$REPO/scripts/build_AD_locus_table.R" ]; then
+  echo "not a repository checkout: $REPO" >&2; exit 1
+fi
+export AD_LOCI_ROOT=${AD_LOCI_ROOT:-/restricted/projectnb/xqtl/jaempawi/xqtl/AD_loci_xQTL}
+export AD_LOCI_STAGING=${AD_LOCI_STAGING:-$AD_LOCI_ROOT/repro/main_text/5_AD_xQTL_genes_cis_trans/staging/gene_priorization_table}
+OUT=${AD_LOCI_OUT:-$AD_LOCI_ROOT/out_e2e_$(date +%Y%m%d_%H%M)}
+export AD_LOCI_OUT=$OUT
+
+mkdir -p "$AD_LOCI_ROOT/logs" "$OUT"
+cd "$REPO" || exit 1
+
+## provenance: snapshot the exact config this build used
+cp config/metadata_analysis.csv "$OUT/_used_metadata_analysis.csv"
+cp config/contexts_metadata.csv "$OUT/_used_contexts_metadata.csv"
+{ echo "built_at,$(date -Iseconds)"
+  echo "built_by,$USER"
+  echo "host,$(hostname)"
+  echo "repo_commit,$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)"
+  echo "out,$OUT"
+  echo "metadata_rows,$(tail -n +2 config/metadata_analysis.csv | wc -l)"
+} > "$OUT/_provenance.csv"
+
+## out/ is intentionally left empty so the GWAS credible-set harmonisation
+## recomputes rather than reusing a previous release's artifacts.
+echo "START $(date) out=$OUT"
+~/.pixi/bin/Rscript scripts/build_AD_locus_table.R
+rc=$?
+echo "BUILD_RC=$rc  $(date)"
+
+if [ $rc -eq 0 ]; then
+  echo "---- validate ----"
+  ~/.pixi/bin/Rscript scripts/validate_outputs.R "$OUT"
+  echo "VALIDATE_RC=$?"
+fi
+echo "END $(date)"
+exit $rc

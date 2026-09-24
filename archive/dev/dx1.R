@@ -1,0 +1,8 @@
+suppressMessages(library(data.table))
+d <- fread("shiny_app/data.csv")
+message("DCOLS: ", paste(names(d),collapse=","))
+message("NROW: ", nrow(d))
+t <- fread("out_20260917_fix/gene_tier_assignment.csv")
+message("TCOLS: ", paste(names(t),collapse=","))
+message("TROW: ", nrow(t))
+print(head(t,3))
