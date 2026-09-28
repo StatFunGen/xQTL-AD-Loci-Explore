@@ -72,7 +72,24 @@ STAMP <- sub('^out_', '', basename(out))   # version stamp used in output filena
 dir.create(out)
 
 
+## The shipped registry declares summary_file / summary_file_ad but leaves them
+## empty, so fread types them logical. A later 'summary_file := <path>' is then
+## coerced back to logical (NA) and the per-method overlap loop finds nothing to
+## read. The column has to be dropped and recreated as character -- assigning to
+## it in place would just be coerced again. Column order is restored afterwards.
+.fix_registry_types <- function(d) {
+  .nm <- names(d)
+  for (.pc in c('summary_file', 'summary_file_ad')) {
+    if (.pc %in% .nm && !is.character(d[[.pc]])) {
+      d[, (.pc) := NULL]
+      d[, (.pc) := NA_character_]
+    }
+  }
+  setcolorder(d, .nm)
+  d[]
+}
 mtd<-fread(metadata_analysis,header = T)
+mtd <- .fix_registry_types(mtd)
 contexts<-fread(contexts_metadata)
 
 #0)prep integration####
@@ -987,6 +1004,7 @@ cat('[LD] precomputed variant correlations:', nrow(variants_cors), 'pairs,',
 ## file.exists(summary_file); truncating them here left only the methods assigned
 ## after this point, so a clean run produced 6 of the 20 _overlapADloci tables.
 mtd<-fread(metadata_analysis,header = T)
+mtd <- .fix_registry_types(mtd)
   
   res_gw<-rbindlist(lapply(file.path(PROJECT_ROOT,mtd[Method=='AD_GWAS_finemapping']$Path),function(f)fread(f)),fill = T)
 ## FIX (2026-09-17): the 8-study GWAS fine-mapping files encode the credible-set index as
@@ -1380,6 +1398,7 @@ fwrite(mtd,metadata_analysis)
 #outputs:ADlocus variant ADlocus_event ADmethod
 #here we want to integrate GWAS locus found in i) single gwas finemapping, ii) ADxQTL coloc, iii) ADxAD colocs
 mtd<-fread(metadata_analysis)
+mtd <- .fix_registry_types(mtd)
 mtd[summary_file=='']
 
 res_gwf<-fread(mtd[Method=='AD_GWAS_finemapping']$summary_file[1])
@@ -1539,6 +1558,7 @@ fwrite(res_adfv[order(locus_index)],'../../../../../xqtl-resources/data/genes/AD
 #III) Get the merged long variant-level table  AD xQTL overlap: each row a variant-ADlocus-Method-context-gene####
 #add those ADlocus annot to all variant level summ table
 mtd<-fread(metadata_analysis)  ## was fp(out,..): config file lives in staging (cwd), never written to out/
+mtd <- .fix_registry_types(mtd)
 res_adfv<-fread(fp(out,'/AD_loci_unified_cs95orColocs_Pval1e5_variant_level.csv.gz'))
 update_summary_ad=FALSE
 
@@ -1640,6 +1660,7 @@ fwrite(mtd,metadata_analysis)
 #get the long AD overlap table####
 
 mtd<-fread(metadata_analysis)
+mtd <- .fix_registry_types(mtd)
 res_adfv<-fread(fp(out,'AD_loci_unified_cs95orColocs_Pval1e5_variant_level.csv.gz'))
 
 
