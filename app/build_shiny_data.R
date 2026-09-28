@@ -172,6 +172,28 @@ for (.c in intersect(c("ordered_contexts","xQTL_effects"), names(out)))
 
 fwrite(out, outfile)
 
+## ---- delivery drift check -------------------------------------------------
+## Every column written here should be one the app actually reads. A column that
+## is delivered but never referenced is invisible to users while still appearing
+## in the released tables - that is how whole loci went missing from the explorer
+## while remaining in the workbook. Warn rather than fail, so a deliberate
+## addition can still ship, but it has to be noticed.
+.app_dir <- dirname(normalizePath(outfile, mustWork = FALSE))
+.src <- c(list.files(file.path(.app_dir, "modules"), pattern = "[.]R$", full.names = TRUE),
+          list.files(.app_dir, pattern = "^app[.]R$", full.names = TRUE))
+if (length(.src)) {
+  .code  <- paste(unlist(lapply(.src, readLines, warn = FALSE)), collapse = "\n")
+  .never <- names(out)[!vapply(names(out), function(cc) grepl(cc, .code, fixed = TRUE), logical(1))]
+  ## provenance columns are intentionally not surfaced in the UI
+  .never <- setdiff(.never, c("evidence_locus", "evidence_gene", "evidence_tier"))
+  if (length(.never)) {
+    warning("[drift] delivered but never read by the app: ", paste(.never, collapse = ", "),
+            " -- surface them in the app or stop delivering them.", call. = FALSE, immediate. = TRUE)
+  } else {
+    message("[drift] every delivered column is referenced by the app")
+  }
+}
+
 # ---- build provenance ---------------------------------------------------
 # Written beside the data so the explorer can state on screen exactly which
 # release and tier source it is serving. Plain key,value CSV, no extra deps.

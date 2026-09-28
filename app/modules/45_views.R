@@ -87,7 +87,11 @@ ct_rows <- function(col) {
 
 # ---- trans pairs, one row per source-target ----
 .mk_trans_tbl <- function() {
-  mods <- c(snRNA = "trans_snRNA", pQTL = "trans_pQTL",
+  ## The generic trans_genes/trans_contexts pair is a distinct evidence set, not a
+## union of the others. It is drawn from a cs50-or-greater export while the four
+## below are cs95 throughout, so each row carries its credible-set coverage.
+  mods <- c(eQTL  = "trans",
+            snRNA = "trans_snRNA", pQTL = "trans_pQTL",
             gpQTL = "trans_gpQTL", Hotspot = "trans_hotspot")
   res <- list()
   for (m in names(mods)) {
@@ -101,9 +105,18 @@ ct_rows <- function(col) {
     d   <- dat[keep, , drop = FALSE]
     lst <- strsplit(d[[tc]], "\\s*,\\s*")
     n   <- lengths(lst)
+    ## coverage: per association for the generic set, cs95 by construction otherwise
+    .cv <- rep(if (m == "eQTL") "" else "cs95", sum(n))
+    if (m == "eQTL" && "trans_coverage" %in% names(d)) {
+      .cl <- strsplit(as.character(d$trans_coverage), ",", fixed = TRUE)
+      if (identical(lengths(.cl), n)) .cv <- trimws(unlist(.cl))
+    }
+    n   <- lengths(lst)
     res[[m]] <- data.frame(
       locus    = rep(d$ADlocus, n),
-      source   = rep(d$gene, n),
+      source   = rep(ifelse(!is.na(d$gene) & nzchar(trimws(as.character(d$gene))),
+                            as.character(d$gene), NO_GENE), n),
+      coverage = .cv,
       rsid     = rep(d$rsid, n),
       target   = trimws(unlist(lst)),
       modality = m,
