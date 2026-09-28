@@ -981,7 +981,12 @@ cat('[LD] precomputed variant correlations:', nrow(variants_cors), 'pairs,',
     if (!.miss_col %in% names(resfp)) resfp[, (.miss_col) := NA_real_]
   }
   #add pip, z
-  mtd<-fread(metadata_analysis,header = T,select = 1:6)
+  ## NOTE: this re-read previously used select = 1:6, which dropped summary_file /
+## summary_file_ad. Those columns are written back to the registry by the earlier
+## per-method stages, and the AD-locus overlap loop below selects on
+## file.exists(summary_file); truncating them here left only the methods assigned
+## after this point, so a clean run produced 6 of the 20 _overlapADloci tables.
+mtd<-fread(metadata_analysis,header = T)
   
   res_gw<-rbindlist(lapply(file.path(PROJECT_ROOT,mtd[Method=='AD_GWAS_finemapping']$Path),function(f)fread(f)),fill = T)
 ## FIX (2026-09-17): the 8-study GWAS fine-mapping files encode the credible-set index as
