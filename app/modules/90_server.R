@@ -804,7 +804,7 @@ observeEvent(input$locus_prev, {
     if (is.null(d)) return(NULL)
     cc <- ctx_cols(d$context)
     datatable(tibble(Locus = d$locus, `Source gene` = d$source, rsID = d$rsid,
-                     Modality = d$modality, `Distal target` = d$target,
+                     Modality = d$modality, `Distal target` = d$target, `Credible set` = d$coverage,
                      `Genes in program` = d$n_genes, Tier = d$tier,
                      `Cell type or region` = cc$ctx, Dataset = cc$dset,
                      `Assay context` = cc$mod),
