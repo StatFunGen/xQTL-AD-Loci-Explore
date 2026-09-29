@@ -17,7 +17,6 @@ scripts/
 config/                    metadata tables the build reads
 data/                      released tables, one directory per build
 app/                       Shiny application, runnable from a clone
-archive/                   superseded and ad-hoc scripts; not part of the pipeline
 DEPENDENCIES.md            R version and package versions
 ```
 
