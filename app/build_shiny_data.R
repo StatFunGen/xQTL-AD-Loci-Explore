@@ -112,11 +112,15 @@ message(sprintf("  (B) tiers from %s, keyed on %s: %d genes (%s)",
 prev <- fread(prev_data)
 carry <- grep("^(trans_|ct_)|^(gene_id|context|n_contexts|ordered_contexts|dist_tss|dist_tes|max_twas_z|max_twas_ctx|twas_sig|mr_sig|ctwas_sig|has_trans|xqtl_max_inclusion|variant_rank)$",
               names(prev), value = TRUE)
-C <- unique(prev[, c("variant_ID", carry), with = FALSE], by = "variant_ID")
-message(sprintf("  (C) carried forward: %d columns for %d variants", length(carry), nrow(C)))
+## Keyed on the variant AND the gene: these are gene-level columns, and 721
+## variants carry more than one gene, so keying on the variant alone gave
+## every gene at a variant the first gene's values.
+C <- unique(prev[, c("variant_ID", "gene", carry), with = FALSE],
+            by = c("variant_ID", "gene"))
+message(sprintf("  (C) carried forward: %d columns for %d variant-gene pairs", length(carry), nrow(C)))
 
 # ---- assemble ---------------------------------------------------------------
-out <- merge(A, C, by = "variant_ID", all.x = TRUE)
+out <- merge(A, C, by = c("variant_ID", "gene"), all.x = TRUE)
 out <- merge(out, tiers, by = tier_key, all.x = TRUE)
 
 out[, evidence_locus := "release"]
