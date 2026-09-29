@@ -182,9 +182,15 @@ fwrite(out, outfile)
 ## in the released tables - that is how whole loci went missing from the explorer
 ## while remaining in the workbook. Warn rather than fail, so a deliberate
 ## addition can still ship, but it has to be noticed.
-.app_dir <- dirname(normalizePath(outfile, mustWork = FALSE))
+## The app sources sit beside this script, not beside the output file. Deriving
+## the directory from outfile meant that writing the table anywhere else left
+## .src empty and skipped the check without saying so.
+.app_dir <- here
 .src <- c(list.files(file.path(.app_dir, "modules"), pattern = "[.]R$", full.names = TRUE),
           list.files(.app_dir, pattern = "^app[.]R$", full.names = TRUE))
+if (!length(.src))
+  warning("[drift] no app sources found under ", .app_dir,
+          " -- delivery drift was NOT checked", call. = FALSE, immediate. = TRUE)
 if (length(.src)) {
   .code  <- paste(unlist(lapply(.src, readLines, warn = FALSE)), collapse = "\n")
   .never <- names(out)[!vapply(names(out), function(cc) grepl(cc, .code, fixed = TRUE), logical(1))]

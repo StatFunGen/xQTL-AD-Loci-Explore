@@ -323,12 +323,13 @@ output$p_trans <- renderPlot({
       Tier = conf_badge(d$top_confidence),
       `#Ctx` = d$n_contexts,
       `xQTL PIP` = round(d$xqtl_max_inclusion, 3),
-      `TWAS z` = round(d$max_twas_z, 2),
+      `TWAS z` = round(d$max_twas_z, 2), `TWAS context` = d$max_twas_ctx,
       TWAS = ev_mark(d$twas_sig),
       MR   = ev_mark(d$mr_sig),
       cTWAS = ev_mark(d$ctwas_sig),
       Trans = ifelse(d$has_trans, paste0('<span style="color:#0b6e4f">\u25cf</span> ', na_fill(d$trans_n_genes, 0)),
                      '<span style="color:#e2e8f0">\u25cb</span>'),
+      `Trans contexts` = na_fill(d$trans_n_contexts, 0),
       `Cell types` = d$ct_dots
     )
   })
@@ -401,11 +402,11 @@ output$p_trans <- renderPlot({
         tags$div(
           tags$p(strong("Variant: "), r$variant_ID, " · ", strong("Effect allele: "), r$effect_allele),
           tags$p(strong("Min p: "), signif(r$min_pval,3), " · ", strong("Significance: "), as.character(r$significance)),
-          tags$p(strong("cV2F: "), round(r$cv2f_score,3), " (rank ", r$cv2f_rank, ") · ",
+          tags$p(strong("cV2F: "), round(r$cv2f_score,3), " (rank ", r$cv2f_rank, ", variant ", r$variant_rank, ") · ",
                  strong("GWAS PIP: "), round(r$max_inclusion,3), " [", pretty_list(r$max_inclusion_method), "]"),
           tags$p(strong("Tier: "), as.character(r$top_confidence), " · ",
                  strong("# contexts: "), r$n_contexts, " · ",
-                 strong("Dist TSS: "), ifelse(is.na(r$dist_tss),"—", paste0(round(r$dist_tss/1000,1)," kb"))),
+                 strong("Dist TSS: "), ifelse(is.na(r$dist_tss),"—", paste0(round(r$dist_tss/1000,1)," kb")), " · ", strong("Dist TES: "), ifelse(is.na(r$dist_tes), "-", paste0(round(r$dist_tes/1000,1)," kb"))),
           tags$p(strong("GWAS: "), pretty_list(r$gwas_assoc)),
           tags$p(strong("Ordered contexts: "), tags$small(pretty_list(ds_relabel(r$ordered_contexts)))),
           ext_links(r$variant_ID, r$rsid),
@@ -758,7 +759,7 @@ observeEvent(input$locus_prev, {
     d <- dat[dat$ADlocus == selected_locus(), ]
     datatable(tibble(Gene = d$gene, rsID = d$rsid, Sig = sig_badge(d$significance),
         Tier = conf_badge(d$top_confidence), `xQTL PIP` = round(d$xqtl_max_inclusion,3),
-        `TWAS z` = round(d$max_twas_z,2), `Cell types` = d$ct_dots,
+        `TWAS z` = round(d$max_twas_z,2), `TWAS context` = d$max_twas_ctx, `Cell types` = d$ct_dots,
         `Ordered contexts` = ds_relabel(d$ordered_contexts)),
       escape = FALSE, rownames = FALSE, options = list(dom = "lrtip", pageLength = 15, scrollX = TRUE, headerCallback = hdr_js, columnDefs = link_defs(0, 1)),
       class = "display compact hover")
