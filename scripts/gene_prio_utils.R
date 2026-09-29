@@ -258,6 +258,20 @@ SummarizeTable<-function(res_adx,
   res_adx[order(-have_trans_effect,-PIP),trans_genes:=paste(unique(gene_name[Method=='trans_finemapping'&gene_name!='']),collapse = '|'),by=.(variant_ID)]
   res_adx[order(-have_trans_effect,-PIP),n_trans_contexts:=length(unique(context[Method=='trans_finemapping'&context!=''])),by=.(variant_ID)]
   res_adx[order(-have_trans_effect,-PIP),trans_contexts:=paste(unique(context[Method=='trans_finemapping'&context!='']),collapse = '|'),by=.(variant_ID)]
+  ## Credible-set coverage for each gene named in trans_genes, in the same order
+  ## and with the same separator. The level is read off credibleset (cs50_1,
+  ## cs70_2, cs95_1, ...); where a gene appears in several sets the widest one
+  ## wins, matching how coverage_xqtl is chosen for cis above. Derived here so
+  ## the value travels with the genes it describes.
+  res_adx[order(-have_trans_effect,-PIP),trans_coverage:={
+    .k <- Method=='trans_finemapping'&gene_name!=''
+    .g <- gene_name[.k]
+    .l <- suppressWarnings(as.integer(sub('cs','',str_extract(credibleset[.k],'cs[0-9]+'))))
+    paste(vapply(unique(.g), function(.x){
+      .v <- .l[.g==.x]; .v <- .v[!is.na(.v)]
+      if(!length(.v)) '' else paste0('cs',max(.v))
+    }, character(1)), collapse = '|')
+  },by=.(variant_ID)]
   
   
    #others trans
