@@ -87,7 +87,12 @@ CTX_MAP <- list(
   ##   Metabrain_Basalganglia  context_short "bulk eQTL", context_broad bulk_brain_eQTL
   ##   Mic_12_Kellis_eQTL      context_short "Mic eQTL",  context_broad Mic_eQTL
   "Metabrain_Basalganglia" = c("Basal ganglia", "MetaBrain", "eQTL", "ct_Brain_xQTL"),
-  "Mic_12_Kellis_eQTL"     = c("Microglia",     "MIT",       "eQTL", "ct_Microglia_xQTL")
+  "Mic_12_Kellis_eQTL"     = c("Microglia",     "MIT",       "eQTL", "ct_Microglia_xQTL"),
+  ## contexts_metadata.csv gives this its own broad group, End_eQTL, but CT_COLS
+  ## has no endothelial flag. Bucketed with bulk brain by choice, so the context
+  ## at least renders; it is a cell type filed under a tissue-level flag, which
+  ## matters only once the ct_* flags are derived rather than carried.
+  "End_DeJager_eQTL" = c("Endothelial", "CUIMC1", "eQTL", "ct_Brain_xQTL")
 
 )
 
