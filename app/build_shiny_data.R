@@ -38,7 +38,15 @@ outfile <- if (length(args) >= 2) args[2] else "data_refreshed.csv"
 here      <- dirname(normalizePath(sub("--file=", "", grep("--file=", commandArgs(FALSE), value = TRUE)[1])))
 prev_data <- file.path(here, "data.csv")
 
-stopifnot(dir.exists(release), file.exists(prev_data))
+## The release is required. The previous data.csv is not: it only supplies the
+## columns that still have no release source. Without it the build still runs,
+## and reports which columns come out empty instead of refusing to start.
+stopifnot(dir.exists(release))
+.have_prev <- file.exists(prev_data)
+if (!.have_prev)
+  warning("[carry] no previous data.csv at ", prev_data,
+          "; building from the release alone. Columns with no release source ",
+          "will be empty.", call. = FALSE, immediate. = TRUE)
 
 # ---- (A) locus / variant evidence, from the release ------------------------
 xl <- list.files(release, pattern = "^unified_AD_loci_xQTL_summary.*\\.xlsx$", full.names = TRUE)
@@ -93,7 +101,10 @@ setnames(A, names(map), unname(map))
 ## added in this release, so newly admitted genes showed no evidence at all.
 ## Matched by pattern so that a reworded workbook header warns instead of
 ## silently falling back to the stale carried value.
+## gene_id joins them: the app holds 189 blanks and the workbook supplies an ID
+## for them, with no row where the two hold different IDs, so this only fills gaps.
 .ctx_src <- c(context          = "^Context$",
+              gene_id          = "^gene\\.ID$",
               ordered_contexts = "^Ordered\\.contexts")
 for (.nm in names(.ctx_src)) {
   .col <- grep(.ctx_src[[.nm]], names(new), value = TRUE)
@@ -124,7 +135,7 @@ message(sprintf("  (B) tiers from %s, keyed on %s: %d genes (%s)",
 
 
 # ---- (C) gene-level columns, carried forward -------------------------------
-prev <- fread(prev_data)
+prev <- if (.have_prev) fread(prev_data) else data.table(variant_ID = character(0), gene = character(0))
 ## ---- trans block: take it from the release, not from the previous data.csv ----
 ## The release derives the whole trans block in one pass (gene lists, context
 ## lists, their counts, and credible-set coverage). Carrying these forward pinned
@@ -160,13 +171,50 @@ if (length(.trans_have) < length(.trans_map))
 carry <- grep("^(trans_|ct_)|^(gene_id|context|n_contexts|ordered_contexts|dist_tss|dist_tes|max_twas_z|max_twas_ctx|twas_sig|mr_sig|ctwas_sig|has_trans|xqtl_max_inclusion|variant_rank)$",
               names(prev), value = TRUE)
 carry <- setdiff(carry, names(.trans_have))
+
+## ---- gene-level columns that the release recomputes every run ----------
+## Same failure mode as the trans block: these were carried forward from the
+## previous data.csv, so they stayed pinned to whatever build first produced
+## them. Checked against the release on 4,195 app rows, the carried copies
+## disagreed on roughly two thirds of variant-gene pairs, by up to 6.5 Mb for
+## the TSS/TES distances. The release recomputes all of them, so it is their
+## source. ordered_contexts is deliberately NOT here: the app holds a rendered
+## display string (e.g. "Inh eQTL- (T5,n=2)") that no single release column
+## supplies, so it stays carried until its derivation is reproduced here.
+.rel_map <- c(dist_tss           = "distance_from_tss",
+              dist_tes           = "distance_from_tes",
+              twas_sig           = "TWAS_signif",
+              mr_sig             = "MR_signif",
+              ctwas_sig          = "cTWAS_signif",
+              max_twas_z         = "twas_z_gene_max",
+              max_twas_ctx       = "twas_z_gene_max_context",
+              variant_rank       = "variant_rank_xqtl",
+              xqtl_max_inclusion = "max_variant_inclusion_probability",
+              n_contexts         = "n_contexts")
+.rel_names <- names(fread(tier_file, nrows = 0))
+.rel_have  <- .rel_map[.rel_map %in% .rel_names]
+.rel_miss  <- .rel_map[!.rel_map %in% .rel_names]
+if (length(.rel_miss))
+  warning("[release] not found in ", basename(tier_file),
+          ", these stay carried forward and may be stale: ",
+          paste(names(.rel_miss), collapse = ", "),
+          call. = FALSE, immediate. = TRUE)
+carry <- setdiff(carry, names(.rel_have))
 carry <- setdiff(carry, names(A))   # section (A) wins over the carried copy
 ## Keyed on the variant AND the gene: these are gene-level columns, and 721
 ## variants carry more than one gene, so keying on the variant alone gave
 ## every gene at a variant the first gene's values.
 C <- unique(prev[, c("variant_ID", "gene", carry), with = FALSE],
             by = c("variant_ID", "gene"))
-message(sprintf("  (C) carried forward: %d columns for %d variant-gene pairs", length(carry), nrow(C)))
+message(sprintf("  (C) carried forward: %d columns for %d variant-gene pairs%s",
+                length(carry), nrow(C),
+                if (length(carry)) paste0(" -- ", paste(sort(carry), collapse = ", ")) else ""))
+## Everything named above still comes from the previous data.csv and can go
+## stale the way the trans block did. As of this patch that is ordered_contexts
+## (a rendered display string with no single release column) and the ct_*_xQTL
+## cell-type flags (the release'"'"'s celltypes column is empty, and no other
+## column was confirmed to mean the same thing). Both need a decision about
+## what they should be derived from before they can move to the release.
 
 # ---- assemble ---------------------------------------------------------------
 out <- merge(A, C, by = c("variant_ID", "gene"), all.x = TRUE)
@@ -183,7 +231,43 @@ if (length(.trans_have)) {
                   length(.trans_have), sum(!is.na(out[[.k]]) & out[[.k]] != ""), nrow(out)))
 }
 
+## (C3) refresh the gene-level block from the release, keyed on variant AND gene
+if (length(.rel_have)) {
+  .rv <- fread(tier_file, select = c("variant_ID", "gene_name", unname(.rel_have)))
+  setnames(.rv, c("gene_name", unname(.rel_have)), c("gene", names(.rel_have)))
+  .nonblank <- function(x) !(is.na(x) | trimws(as.character(x)) == "")
+  .rv[, .nb := Reduce(`+`, lapply(.SD, function(x) as.integer(.nonblank(x)))),
+      .SDcols = names(.rel_have)]
+  setorderv(.rv, c("variant_ID", "gene", ".nb"), c(1L, 1L, -1L))
+  .rv <- unique(.rv, by = c("variant_ID", "gene"))
+  .rv[, .nb := NULL]
+  out <- merge(out, .rv, by = c("variant_ID", "gene"), all.x = TRUE)
+  message(sprintf("  (C3) gene-level from release: %d columns; %s",
+                  length(.rel_have),
+                  paste(sprintf("%s=%d", names(.rel_have),
+                                vapply(names(.rel_have),
+                                       function(k) sum(.nonblank(out[[k]])), integer(1))),
+                        collapse = " ")))
+}
+
 out[, evidence_locus := "release"]
+## has_trans has no release column of its own and is still carried forward.
+## Without a previous data.csv there is nothing to carry, so derive it from the
+## refreshed trans block rather than failing. The two are not equivalent: on the
+## current app data, "trans_genes is non-empty" and the carried has_trans differ
+## on about 15% of rows, so a build with no previous data.csv is not identical
+## to one with it. Reconciling them needs a decision about what has_trans means.
+if (!"has_trans" %in% names(out)) {
+  if ("trans_genes" %in% names(out)) {
+    out[, has_trans := !(is.na(trans_genes) | trimws(as.character(trans_genes)) == "")]
+  } else {
+    out[, has_trans := NA]
+  }
+  warning("[carry] has_trans not carried; derived from trans_genes in the release. ",
+          "See the note above build_shiny_data.R's evidence_gene assignment.",
+          call. = FALSE, immediate. = TRUE)
+}
+
 out[, evidence_gene  := fifelse(is.na(context) & is.na(has_trans), "missing", "202605")]
 ## --- why there is NO T6 backfill here ---------------------------------
 ## An earlier version of this script promoted genes to T6 when twas_sig /
