@@ -86,6 +86,21 @@ if (length(missing)) stop("release xlsx is missing expected columns: ", paste(mi
 
 A <- new[, names(map), with = FALSE]
 setnames(A, names(map), unname(map))
+
+## Context and the ordered-context list also come from the workbook: they sit at
+## the same one-row-per-variant-gene granularity as the rest of section (A).
+## Carrying them forward from the previous data.csv left them without any context
+## added in this release, so newly admitted genes showed no evidence at all.
+## Matched by pattern so that a reworded workbook header warns instead of
+## silently falling back to the stale carried value.
+.ctx_src <- c(context          = "^Context$",
+              ordered_contexts = "^Ordered\\.contexts")
+for (.nm in names(.ctx_src)) {
+  .col <- grep(.ctx_src[[.nm]], names(new), value = TRUE)
+  if (length(.col) == 1) A[, (.nm) := new[[.col]]]
+  else warning("[context] no single workbook column matches ", .ctx_src[[.nm]],
+               "; ", .nm, " stays carried", call. = FALSE, immediate. = TRUE)
+}
 message(sprintf("  (A) refreshed: %d rows, %d loci", nrow(A), uniqueN(A$ADlocus)))
 
 # ---- (B) tier assignment ----------------------------------------------------
@@ -145,6 +160,7 @@ if (length(.trans_have) < length(.trans_map))
 carry <- grep("^(trans_|ct_)|^(gene_id|context|n_contexts|ordered_contexts|dist_tss|dist_tes|max_twas_z|max_twas_ctx|twas_sig|mr_sig|ctwas_sig|has_trans|xqtl_max_inclusion|variant_rank)$",
               names(prev), value = TRUE)
 carry <- setdiff(carry, names(.trans_have))
+carry <- setdiff(carry, names(A))   # section (A) wins over the carried copy
 ## Keyed on the variant AND the gene: these are gene-level columns, and 721
 ## variants carry more than one gene, so keying on the variant alone gave
 ## every gene at a variant the first gene's values.
