@@ -203,17 +203,23 @@ gene_pos <- local({
 
 trans_pairs <- local({
   if (is.null(gene_pos)) return(NULL)
-  d <- dat[!is.na(dat$trans_genes) & nzchar(trimws(as.character(dat$trans_genes))) &
-           !is.na(dat$gene) & dat$gene != "" & !is.na(dat$pos), , drop = FALSE]
+  ## Every trans set is read, not just the per-assay ones. The five lists are
+  ## largely disjoint, so the main trans_genes column carries links the others
+  ## never do. Hotspot stays out: its entries are program names rather than
+  ## genes, so they have no position on the genome to draw an arc to.
+  .tc  <- intersect(c("trans_genes", "trans_snRNA_genes", "trans_pQTL_genes",
+                      "trans_gpQTL_genes"), names(dat))
+  .has <- Reduce(`|`, lapply(.tc, function(k)
+            !is.na(dat[[k]]) & nzchar(trimws(as.character(dat[[k]])))))
+  ## An arc starts at the variant position, so a cis gene was only ever the
+  ## label for its start. Rows without one are labelled by the locus instead.
+  d <- dat[.has & !is.na(dat$pos), , drop = FALSE]
   if (!nrow(d)) return(NULL)
   mods <- c(snRNA = "trans_snRNA_n_genes", pQTL = "trans_pQTL_n_genes",
             gpQTL = "trans_gpQTL_n_genes", Hotspot = "trans_hotspot_n_genes")
   out <- do.call(rbind, lapply(seq_len(nrow(d)), function(i) {
-    tg <- unique(trimws(unlist(strsplit(as.character(d$trans_genes[i]), "[;,|]"))))
-    tg <- tg[nzchar(tg)]
-    if (!length(tg)) return(NULL)
-    gsets <- list(snRNA = "trans_snRNA_genes", pQTL = "trans_pQTL_genes",
-                  gpQTL = "trans_gpQTL_genes")
+    gsets <- list(`Trans genes` = "trans_genes", snRNA = "trans_snRNA_genes",
+                  pQTL = "trans_pQTL_genes", gpQTL = "trans_gpQTL_genes")
     mm <- character(0); gg <- character(0)
     for (mname in names(gsets)) {
       cc <- gsets[[mname]]
@@ -228,7 +234,7 @@ trans_pairs <- local({
     if (!length(gg)) return(NULL)
     tg <- gg
     data.frame(ADlocus = as.character(d$ADlocus[i]),
-               src = as.character(d$gene[i]),
+                   src = if (is.na(d$gene[i]) || d$gene[i] == "") as.character(d$ADlocus[i]) else as.character(d$gene[i]),
                src_chr = sub("^chr", "", as.character(d$chr[i])),
                src_pos = as.numeric(d$pos[i]),
                tgt = tg,
@@ -245,7 +251,7 @@ trans_pairs <- local({
   out$x <- out$src_pos + chr_offsets$off[match(out$src_chr, chr_offsets$chr)]
   out$y <- out$tgt_pos + chr_offsets$off[match(out$tgt_chr, chr_offsets$chr)]
   out$modality <- factor(out$modality,
-                         levels = intersect(c("snRNA", "pQTL", "gpQTL", "Hotspot"),
+                         levels = intersect(c("Trans genes", "snRNA", "pQTL", "gpQTL", "Hotspot"),
                                             unique(out$modality)))
   out
 })

@@ -769,7 +769,7 @@ observeEvent(input$locus_prev, {
   trans_d <- reactive({
     d <- dat[na_fill(dat$has_trans, FALSE), ]
     if (length(input$tmod)) {
-      colmap <- c("snRNA"="trans_snRNA_n_genes","pQTL"="trans_pQTL_n_genes",
+      colmap <- c("Trans genes"="trans_n_genes","snRNA"="trans_snRNA_n_genes","pQTL"="trans_pQTL_n_genes",
                   "gpQTL"="trans_gpQTL_n_genes",
                   "Hotspot"="trans_hotspot_n_genes")
       keep <- rep(FALSE, nrow(d))
@@ -1636,8 +1636,8 @@ output$gp_matrix <- renderUI({
     d <- trans_all
     if (is.null(d) || !nrow(d))
       return(div(class = "dc-note", "No trans pairs recorded in this release."))
-    mods <- c("snRNA", "pQTL", "gpQTL", "Hotspot")
-    cols <- c(snRNA = "#2a78d6", pQTL = "#da532c",
+    mods <- c("Trans genes", "snRNA", "pQTL", "gpQTL", "Hotspot")
+    cols <- c(`Trans genes` = "#7b52ab", snRNA = "#2a78d6", pQTL = "#da532c",
               gpQTL = "#17868f", Hotspot = "#a8791b")
     tot <- sort(vapply(split(d$target, d$locus), function(z) length(unique(z)), integer(1)), decreasing = TRUE)
     top <- names(tot)[seq_len(min(12, length(tot)))]

@@ -1136,7 +1136,7 @@ ui <- page_navbar(
           div(class = "tc-f tc-f2",
             div(role = "group", `aria-label` = "Trans modality filter",
               checkboxGroupInput("tmod", "Modality",
-                choices = c("snRNA", "pQTL", "gpQTL", "Hotspot"), inline = TRUE))),
+                choices = c("Trans genes", "snRNA", "pQTL", "gpQTL", "Hotspot"), inline = TRUE))),
           div(class = "tc-f tc-f3",
             div(class = "dc-kicker", "Export"),
             div(class = "dc-exp", style = "margin-top:6px",
