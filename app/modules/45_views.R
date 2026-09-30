@@ -70,7 +70,14 @@ CTX_MAP <- list(
   "ROSMAP_PCC_sQTL" = c("PCC", "ROSMAP", "sQTL", "ct_Brain_xQTL"),
   "ROSMAP_PCC_u_sQTL" = c("PCC", "ROSMAP", "sQTL", "ct_Brain_xQTL"),
   "STARNET_eQTL_Mac" = c("Macrophage", "STARNET", "eQTL", "ct_Bulk_Immune_xQTL"),
-  "monocyte_ROSMAP_eQTL" = c("Monocyte", "ROSMAP", "eQTL", "ct_Bulk_Immune_xQTL")
+  "monocyte_ROSMAP_eQTL" = c("Monocyte", "ROSMAP", "eQTL", "ct_Bulk_Immune_xQTL"),
+  ## transcriptomic pattern QTL (tpQTL), ROSMAP Torino factorisation. The
+  ## context strings keep the sQTL_factor spelling because that is what the
+  ## data carries; only the display modality and grouping say tpQTL.
+  "ROSMAP_AC_sQTL_factor"    = c("AC",    "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
+  "ROSMAP_DLPFC_sQTL_factor" = c("DLPFC", "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
+  "ROSMAP_PCC_sQTL_factor"   = c("PCC",   "ROSMAP", "tpQTL", "ct_Brain_xQTL")
+
 )
 
 .ctx_bucket <- vapply(as.character(dat$context), function(v) {
