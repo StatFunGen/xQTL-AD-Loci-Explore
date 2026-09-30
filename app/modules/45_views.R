@@ -82,7 +82,12 @@ CTX_MAP <- list(
   ## data carries; only the display modality and grouping say tpQTL.
   "ROSMAP_AC_sQTL_factor"    = c("AC",    "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
   "ROSMAP_DLPFC_sQTL_factor" = c("DLPFC", "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
-  "ROSMAP_PCC_sQTL_factor"   = c("PCC",   "ROSMAP", "tpQTL", "ct_Brain_xQTL")
+  "ROSMAP_PCC_sQTL_factor"   = c("PCC",   "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
+  ## Labels and groupings taken from contexts_metadata.csv rather than guessed:
+  ##   Metabrain_Basalganglia  context_short "bulk eQTL", context_broad bulk_brain_eQTL
+  ##   Mic_12_Kellis_eQTL      context_short "Mic eQTL",  context_broad Mic_eQTL
+  "Metabrain_Basalganglia" = c("Basal ganglia", "MetaBrain", "eQTL", "ct_Brain_xQTL"),
+  "Mic_12_Kellis_eQTL"     = c("Microglia",     "MIT",       "eQTL", "ct_Microglia_xQTL")
 
 )
 
