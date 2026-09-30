@@ -1123,6 +1123,9 @@ observeEvent(input$locus_prev, {
     if (!is.null(input$lt_mod) && length(input$lt_mod))
       t <- t[vapply(strsplit(t$mods, ","), function(v)
                any(input$lt_mod %in% trimws(v)), logical(1)), , drop = FALSE]
+      if (!is.null(input$lt_cis) && length(input$lt_cis) && !is.null(t$evidence))
+        t <- t[vapply(strsplit(t$evidence, " + ", fixed = TRUE), function(v)
+               any(input$lt_cis %in% trimws(v)), logical(1)), , drop = FALSE]
     h <- lt_hits()
     if (!is.null(h)) t <- t[t$ADlocus %in% h, , drop = FALSE]
     t
@@ -1172,6 +1175,11 @@ observeEvent(input$locus_prev, {
       Records = t$n_rows,
       "Evidence by tier" = vapply(seq_len(nrow(t)), function(i) lt_bar(t[i, ]), character(1)),
       check.names = FALSE, stringsAsFactors = FALSE)
+      ## flag a top gene that is linked to the locus in trans, not cis
+      if (!is.null(t$top_evidence)) {
+        .tz <- !is.na(t$top_evidence) & t$top_evidence == "trans"
+        d[["Top gene"]][.tz] <- paste0(d[["Top gene"]][.tz], " <span class=\"tchip\" style=\"background:#6b7280;color:#fff\" title=\"This gene sits elsewhere in the genome; its link to the locus is trans\">trans</span>")
+      }
     datatable(d, escape = FALSE, rownames = FALSE, selection = "single",
       options = list(pageLength = 15, dom = "tip", autoWidth = FALSE,
         columnDefs = list(list(className = "dt-right", targets = c(6, 7)),

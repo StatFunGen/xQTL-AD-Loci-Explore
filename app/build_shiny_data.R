@@ -424,6 +424,8 @@ if (length(.cca)) {
 out[, evidence_tier  := fifelse(is.na(top_confidence), "untiered", tier_src)]
 
 
+source(file.path(here, "trans_rows.R"), local = TRUE)
+
 # ---- report -----------------------------------------------------------------
 prev_genes <- unique(na.omit(prev$gene)); new_genes <- unique(na.omit(out$gene))
 message("\n--- refresh report ---")

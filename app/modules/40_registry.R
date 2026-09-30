@@ -397,6 +397,10 @@ locus_table <- local({
                    -ifelse(is.na(gu$log10pval), -Inf, gu$log10pval))
       top <- as.character(gu$gene[ord[1]])
     }
+      ## cis or trans evidence behind this locus, and behind its top gene
+      ev  <- if (is.null(d$cis_trans)) "cis" else paste(intersect(c("cis", "trans"), unique(as.character(d$cis_trans))), collapse = " + ")
+      if (!nzchar(ev)) ev <- "cis"
+      tev <- if (!nrow(gu) || is.null(gu$cis_trans)) NA_character_ else as.character(gu$cis_trans[ord[1]])
     cts <- if (is.null(e)) character(0) else intersect(CTX_ORD, unique(e$ctx))
     mds <- if (is.null(e)) character(0) else intersect(MOD_ORD, unique(e$mod))
     tc  <- vapply(TIER_SEQ, function(tt) sum(tv == tt, na.rm = TRUE), integer(1))
@@ -411,6 +415,8 @@ locus_table <- local({
       mods    = paste(mds, collapse = ", "),
       n_genes = nrow(gu),
       n_rows  = nrow(d),
+        evidence     = ev,
+        top_evidence = tev,
       t1 = tc[[1]], t2 = tc[[2]], t3 = tc[[3]],
       t4 = tc[[4]], t5 = tc[[5]], t6 = tc[[6]],
       stringsAsFactors = FALSE)
