@@ -201,6 +201,7 @@ if (length(.rel_miss))
           call. = FALSE, immediate. = TRUE)
 carry <- setdiff(carry, names(.rel_have))
 carry <- setdiff(carry, "has_trans")
+carry <- setdiff(carry, grep("^ct_", carry, value = TRUE))
 carry <- setdiff(carry, names(A))   # section (A) wins over the carried copy
 ## Keyed on the variant AND the gene: these are gene-level columns, and 721
 ## variants carry more than one gene, so keying on the variant alone gave
@@ -252,6 +253,75 @@ if (length(.rel_have)) {
 }
 
 out[, evidence_locus := "release"]
+## (C5) cell-type flags, derived from the release rather than carried forward.
+##
+## Follows how the upstream code assigns cell types: it does not keep a map in
+## the script, it joins contexts_metadata.csv. complete_ADlocus_level_summary.R
+## merges sn-sQTL cell types against that table's context_snsQTL column, and
+## build_AD_locus_table.R groups bulk monocyte, macrophage and microglia into
+## one immune group. Both rules are reproduced here from the same table, so a
+## context added to the config is picked up without editing this file.
+##
+## The context list per variant-gene pair is xQTL_contexts, the release's copy
+## of gene_prio_utils.R's XQTL_contexts. The app's own `context` column holds
+## at most one context per row and is not a substitute.
+##
+## This changes what the flags say. The carried values cannot be reproduced
+## from any context list in the release: of 1,898 rows carrying ct_Exc_xQTL,
+## 594 have no contexts at all and 549 more have contexts naming no excitatory
+## type. They are residue from an older build, so roughly a third to a half of
+## the current ticks disappear here. That is the correction, not a regression.
+.cmeta <- file.path(release, "_used_contexts_metadata.csv")
+if (!file.exists(.cmeta) && nzchar(Sys.getenv("AD_LOCI_CONFIG")))
+  .cmeta <- file.path(Sys.getenv("AD_LOCI_CONFIG"), "contexts_metadata.csv")
+if (file.exists(.cmeta)) {
+  .cm <- fread(.cmeta)
+  .flag_of <- function(b) fcase(
+    b %in% c("bulk_macrophage_eQTL", "bulk_microglia_eQTL", "bulk_monocyte_eQTL"),
+                            "ct_Bulk_Immune_xQTL",
+    grepl("^Ast_", b),      "ct_Ast_xQTL",
+    grepl("^Exc_", b),      "ct_Exc_xQTL",
+    grepl("^Inh_", b),      "ct_Inh_xQTL",
+    grepl("^Mic_", b),      "ct_Microglia_xQTL",
+    grepl("^Oli_", b),      "ct_Oli_xQTL",
+    grepl("^OPC_", b),      "ct_OPC_xQTL",
+    grepl("^bulk_brain_", b), "ct_Brain_xQTL",
+    default = NA_character_)
+  .cm[, .flag := .flag_of(context_broad)]
+  .cmap <- setNames(.cm$.flag, .cm$context)
+  .cmap <- .cmap[!is.na(.cmap) & !is.na(names(.cmap)) & names(.cmap) != ""]
+  .cx <- fread(tier_file, select = c("variant_ID", "gene_name", "xQTL_contexts"))
+  setnames(.cx, "gene_name", "gene")
+  .cx <- unique(.cx[!is.na(xQTL_contexts) & xQTL_contexts != ""],
+                by = c("variant_ID", "gene"))
+  .cstr <- .cx[out[, .(variant_ID, gene)], on = .(variant_ID, gene), xQTL_contexts]
+  .ctxs <- strsplit(ifelse(is.na(.cstr), "", as.character(.cstr)), "[|;]")
+  .none <- is.na(.cstr)
+  .seen <- setdiff(unique(trimws(unlist(.ctxs))), "")
+  .unknown <- setdiff(.seen, .cm$context)
+  if (length(.unknown))
+    warning("[ct] contexts absent from contexts_metadata, contributing to no flag: ",
+            paste(.unknown, collapse = ", "), call. = FALSE, immediate. = TRUE)
+  .nobucket <- setdiff(intersect(.seen, .cm$context), names(.cmap))
+  if (length(.nobucket))
+    message(sprintf("  (C5) %d contexts have no cell-type flag by design (%s)",
+                    length(.nobucket), paste(utils::head(.nobucket, 6), collapse = ", ")))
+  for (.b in sort(unique(unname(.cmap)))) {
+    .keys <- names(.cmap)[.cmap == .b]
+    .v <- vapply(.ctxs, function(v) any(trimws(v) %in% .keys), logical(1))
+    .v[.none] <- NA
+    set(out, j = .b, value = .v)
+  }
+  message(sprintf("  (C5) cell-type flags from contexts_metadata: %s",
+                  paste(sprintf("%s=%d", sort(unique(unname(.cmap))),
+                                vapply(sort(unique(unname(.cmap))),
+                                       function(k) sum(out[[k]] %in% TRUE), integer(1))),
+                        collapse = " ")))
+} else {
+  warning("[ct] no contexts_metadata found; cell-type flags left as carried",
+          call. = FALSE, immediate. = TRUE)
+}
+
 ## (C4) has_trans is the union of the trans count columns, per Q3 of the
 ## flagship section-5 notebook:
 ##   trans_cols <- c("# trans genes", "# pQTL trans genes", "# gpQTL trans genes",
