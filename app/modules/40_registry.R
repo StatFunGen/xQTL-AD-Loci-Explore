@@ -397,9 +397,11 @@ locus_table <- local({
                    -ifelse(is.na(gu$log10pval), -Inf, gu$log10pval))
       top <- as.character(gu$gene[ord[1]])
     }
-      ## cis or trans evidence behind this locus, and behind its top gene
-      ev  <- if (is.null(d$cis_trans)) "cis" else paste(intersect(c("cis", "trans"), unique(as.character(d$cis_trans))), collapse = " + ")
-      if (!nzchar(ev)) ev <- "cis"
+      ## Evidence behind the genes named at this locus. Judged on the genes,
+      ## not the rows, so a locus whose only named genes come from trans
+      ## reads "trans only".
+      .gv <- if (!nrow(gu) || is.null(gu$cis_trans)) character(0) else unique(as.character(gu$cis_trans))
+      ev  <- if (!length(.gv)) "no gene" else if (all(.gv == "trans")) "trans only" else if (all(.gv == "cis")) "cis only" else "cis + trans"
       tev <- if (!nrow(gu) || is.null(gu$cis_trans)) NA_character_ else as.character(gu$cis_trans[ord[1]])
     cts <- if (is.null(e)) character(0) else intersect(CTX_ORD, unique(e$ctx))
     mds <- if (is.null(e)) character(0) else intersect(MOD_ORD, unique(e$mod))

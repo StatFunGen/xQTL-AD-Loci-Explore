@@ -1124,8 +1124,7 @@ observeEvent(input$locus_prev, {
       t <- t[vapply(strsplit(t$mods, ","), function(v)
                any(input$lt_mod %in% trimws(v)), logical(1)), , drop = FALSE]
       if (!is.null(input$lt_cis) && length(input$lt_cis) && !is.null(t$evidence))
-        t <- t[vapply(strsplit(t$evidence, " + ", fixed = TRUE), function(v)
-               any(input$lt_cis %in% trimws(v)), logical(1)), , drop = FALSE]
+        t <- t[t$evidence %in% input$lt_cis, , drop = FALSE]
     h <- lt_hits()
     if (!is.null(h)) t <- t[t$ADlocus %in% h, , drop = FALSE]
     t
