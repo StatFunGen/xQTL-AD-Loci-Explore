@@ -200,6 +200,7 @@ if (length(.rel_miss))
           paste(names(.rel_miss), collapse = ", "),
           call. = FALSE, immediate. = TRUE)
 carry <- setdiff(carry, names(.rel_have))
+carry <- setdiff(carry, "has_trans")
 carry <- setdiff(carry, names(A))   # section (A) wins over the carried copy
 ## Keyed on the variant AND the gene: these are gene-level columns, and 721
 ## variants carry more than one gene, so keying on the variant alone gave
@@ -251,22 +252,45 @@ if (length(.rel_have)) {
 }
 
 out[, evidence_locus := "release"]
-## has_trans has no release column of its own and is still carried forward.
-## Without a previous data.csv there is nothing to carry, so derive it from the
-## refreshed trans block rather than failing. The two are not equivalent: on the
-## current app data, "trans_genes is non-empty" and the carried has_trans differ
-## on about 15% of rows, so a build with no previous data.csv is not identical
-## to one with it. Reconciling them needs a decision about what has_trans means.
-if (!"has_trans" %in% names(out)) {
-  if ("trans_genes" %in% names(out)) {
-    out[, has_trans := !(is.na(trans_genes) | trimws(as.character(trans_genes)) == "")]
-  } else {
-    out[, has_trans := NA]
-  }
-  warning("[carry] has_trans not carried; derived from trans_genes in the release. ",
-          "See the note above build_shiny_data.R's evidence_gene assignment.",
-          call. = FALSE, immediate. = TRUE)
+## (C4) has_trans is the union of the trans count columns, per Q3 of the
+## flagship section-5 notebook:
+##   trans_cols <- c("# trans genes", "# pQTL trans genes", "# gpQTL trans genes",
+##                   "# snRNA trans genes", "# trans cca programs",
+##                   "# trans hotspots programs genes")
+##   has_trans := rowSums(...) > 0
+## Five of those six are app columns, refreshed from the release in (C2). The
+## sixth, the CCA program count, has no app column of its own and is read here
+## rather than added, so the drift check does not see an unreferenced column.
+##
+## Not derived from Method == 'trans_finemapping': that is how gene_prio_utils.R
+## builds it upstream, but the exported table drops the trans rows and keeps
+## only their summaries, so applying it here yields FALSE everywhere.
+##
+## Against the carried column this agrees on 3,789 of 3,821 rows. All 32
+## disagreements run the same way -- carried TRUE where every count is zero --
+## which is the carry-forward staleness, not a second definition. Rows that
+## were previously blank resolve to FALSE, which is what the definition gives.
+.tcc <- intersect(c("trans_n_genes", "trans_pQTL_n_genes", "trans_gpQTL_n_genes",
+                    "trans_snRNA_n_genes", "trans_hotspot_n_genes"), names(out))
+.tot <- rowSums(sapply(.tcc, function(k) suppressWarnings(as.numeric(out[[k]]))),
+                na.rm = TRUE)
+if ("n_trans_cca_programs" %in% .rel_names) {
+  .cca <- fread(tier_file, select = c("variant_ID", "gene_name", "n_trans_cca_programs"))
+  setnames(.cca, "gene_name", "gene")
+  .cca <- .cca[, .(cca_n = suppressWarnings(max(as.numeric(n_trans_cca_programs),
+                                                na.rm = TRUE))),
+               by = .(variant_ID, gene)]
+  .cca[!is.finite(cca_n), cca_n := 0]
+  .j <- .cca[out[, .(variant_ID, gene)], on = .(variant_ID, gene), cca_n]
+  .tot <- .tot + ifelse(is.na(.j), 0, .j)
+} else {
+  warning("[release] no n_trans_cca_programs; has_trans built from ",
+          length(.tcc), " of 6 columns", call. = FALSE, immediate. = TRUE)
 }
+out[, has_trans := .tot > 0]
+message(sprintf("  (C4) has_trans from %d trans count columns: %d TRUE, %d FALSE",
+                length(.tcc) + as.integer("n_trans_cca_programs" %in% .rel_names),
+                sum(out$has_trans), sum(!out$has_trans)))
 
 out[, evidence_gene  := fifelse(is.na(context) & is.na(has_trans), "missing", "202605")]
 ## --- why there is NO T6 backfill here ---------------------------------
