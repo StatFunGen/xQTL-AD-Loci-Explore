@@ -1244,7 +1244,7 @@ ui <- page_navbar(
                 "AD_locus, region, chr, lead_variant, best_tier, top_gene, cell_types, modalities, n_genes, n_records"),
               dl_row("dlf_tier", "Gene tier assignment",
               "The evidence tier assigned to each gene in this release.",
-              "508", "CSV", "13 KB",
+              "515", "CSV", "13 KB",
               "gene_ID, gene_name, tier"),
             dl_row("dlf_varlvl", "AD locus variants",
                 "Variant-level unified AD loci table behind the locus definitions.",

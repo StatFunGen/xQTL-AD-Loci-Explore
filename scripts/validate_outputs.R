@@ -37,7 +37,7 @@ if (file.exists(vf)) {
   t <- v[!is.na(top_confidence) & top_confidence != "" &
          !is.na(gene_name) & gene_name != ""]
   g <- t[, .(tier = min(top_confidence)), by = .(gene = gene_name)]
-  note(nrow(g) == 508, sprintf("tiered genes is 508 (found %d)", nrow(g)))
+  note(nrow(g) == 515, sprintf("tiered genes is 515 (found %d)", nrow(g)))
 
   tb <- table(g$tier)
   cat("\n  tier distribution:", paste(sprintf("%s=%d", names(tb), tb), collapse = " "), "\n")
