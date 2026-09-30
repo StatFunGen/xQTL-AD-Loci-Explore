@@ -974,7 +974,7 @@ ui <- page_navbar(
             selectizeInput("lt_tier", info("Best tier", "The strongest evidence tier reached at this locus. T1 is the most stringent. T6 is TWAS or MR evidence with no localised AD-xQTL support, so it sits apart from the T1-T5 ladder."), choices = TIER_SEQ, multiple = TRUE,
               width = "100%", options = list(placeholder = "All tiers"))),
           div(class = "lt-f",
-            selectizeInput("lt_mod", info("Modality", "The molecular assay behind the evidence: expression (eQTL), splicing (sQTL), protein (pQTL), methylation (mQTL), histone acetylation (haQTL), chromatin accessibility (caQTL) and glycoprotein (gpQTL)."), choices = MOD_ORD, multiple = TRUE,
+            selectizeInput("lt_mod", info("Modality", "The molecular assay behind the evidence: expression (eQTL), splicing (sQTL), transcriptomic pattern (tpQTL), protein (pQTL), methylation (mQTL), histone acetylation (haQTL), chromatin accessibility (caQTL) and glycoprotein (gpQTL)."), choices = MOD_ORD, multiple = TRUE,
               width = "100%", options = list(placeholder = "All modalities"))),
           div(class = "lt-f lt-stat", uiOutput("lt_stat")),
           div(class = "lt-f lt-e",

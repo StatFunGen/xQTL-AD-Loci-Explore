@@ -250,7 +250,7 @@ trans_pairs <- local({
   out
 })
 
-MOD_COL <- c(snRNA = "#2a78d6", pQTL = "#1baf7a", gpQTL = "#eda100",
+MOD_COL <- c(snRNA = "#2a78d6", pQTL = "#1baf7a", gpQTL = "#eda100", tpQTL = "#9c9a9c",
              Hotspot = "#da532c", unspecified = "#898781")
 
 trans_map_plot <- function(d, note_empty = "No trans pairs with mapped coordinates.") {

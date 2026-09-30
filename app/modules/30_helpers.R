@@ -44,8 +44,8 @@ CTX_FULL <- c(Ast = "Astrocyte", Exc = "Excitatory", Inh = "Inhibitory",
               bMono = "Monocyte", bMac = "Macrophage", bMic = "Microglia (blood)",
               bulk = "Bulk")
 CTX_ORD <- c("Ast", "Exc", "Inh", "Mic", "OPC", "Oli", "bMono", "bMac", "bMic", "bulk")
-MOD_ORD <- c("eQTL", "sQTL", "pQTL", "mQTL", "caQTL", "haQTL", "gpQTL")
-MOD_SHP <- c(eQTL = 21, sQTL = 22, pQTL = 23, mQTL = 24, caQTL = 3, haQTL = 124, gpQTL = 4)
+MOD_ORD <- c("eQTL", "sQTL", "tpQTL", "pQTL", "mQTL", "caQTL", "haQTL", "gpQTL")
+MOD_SHP <- c(eQTL = 21, sQTL = 22, tpQTL = 25, pQTL = 23, mQTL = 24, caQTL = 3, haQTL = 124, gpQTL = 4)
 GWS <- -log10(5e-8)
 
 parse_ctx_tokens <- function(d) {
