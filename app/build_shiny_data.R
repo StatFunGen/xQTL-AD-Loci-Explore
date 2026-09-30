@@ -103,9 +103,11 @@ setnames(A, names(map), unname(map))
 ## silently falling back to the stale carried value.
 ## gene_id joins them: the app holds 189 blanks and the workbook supplies an ID
 ## for them, with no row where the two hold different IDs, so this only fills gaps.
+## ordered_contexts is no longer sought here: the workbook has seventeen
+## columns of that name and none can be singled out, and (C6) now takes the
+## assembled string from the release instead.
 .ctx_src <- c(context          = "^Context$",
-              gene_id          = "^gene\\.ID$",
-              ordered_contexts = "^Ordered\\.contexts")
+              gene_id          = "^gene\\.ID$")
 for (.nm in names(.ctx_src)) {
   .col <- grep(.ctx_src[[.nm]], names(new), value = TRUE)
   if (length(.col) == 1) A[, (.nm) := new[[.col]]]
@@ -202,6 +204,7 @@ if (length(.rel_miss))
 carry <- setdiff(carry, names(.rel_have))
 carry <- setdiff(carry, "has_trans")
 carry <- setdiff(carry, grep("^ct_", carry, value = TRUE))
+carry <- setdiff(carry, "ordered_contexts")
 carry <- setdiff(carry, names(A))   # section (A) wins over the carried copy
 ## Keyed on the variant AND the gene: these are gene-level columns, and 721
 ## variants carry more than one gene, so keying on the variant alone gave
@@ -253,6 +256,36 @@ if (length(.rel_have)) {
 }
 
 out[, evidence_locus := "release"]
+## (C6) ordered_contexts, read from the release rather than carried.
+##
+## The release already assembles this string as xQTL_effects; nothing needs
+## rebuilding. gene_prio_utils.R:199-216 composes it per variant and gene:
+## the group label, then the sign of conditional_effect ('.' when absent),
+## then the sign of coef (omitted when absent), then '(<confidence_lvl>,n=<n>)'
+## where n counts distinct contexts for that locus, gene and group. Entries are
+## ordered by confidence level, then descending |twas_z|, then descending
+## cos_npc, and joined with '|'. The app's helpers split on ';', so only the
+## separator changes here.
+##
+## The carried copy had gone stale: it matches the release on 14% of the pairs
+## where both exist, and where it differs the label and sign agree while the
+## count does not -- an old n against a current one. It also disagreed with
+## n_contexts, which is now release-sourced, on more than half of all rows.
+if ("xQTL_effects" %in% .rel_names) {
+  .oc <- fread(tier_file, select = c("variant_ID", "gene_name", "xQTL_effects"))
+  setnames(.oc, c("gene_name", "xQTL_effects"), c("gene", "ordered_contexts"))
+  .oc <- unique(.oc[!is.na(ordered_contexts) & ordered_contexts != ""],
+                by = c("variant_ID", "gene"))
+  .oc[, ordered_contexts := gsub("|", "; ", ordered_contexts, fixed = TRUE)]
+  out <- merge(out, .oc, by = c("variant_ID", "gene"), all.x = TRUE)
+  message(sprintf("  (C6) ordered_contexts from release: %d of %d pairs",
+                  sum(!is.na(out$ordered_contexts)), nrow(out)))
+} else {
+  warning("[release] no xQTL_effects column; ordered_contexts left empty",
+          call. = FALSE, immediate. = TRUE)
+  out[, ordered_contexts := NA_character_]
+}
+
 ## (C5) cell-type flags, derived from the release rather than carried forward.
 ##
 ## Follows how the upstream code assigns cell types: it does not keep a map in
