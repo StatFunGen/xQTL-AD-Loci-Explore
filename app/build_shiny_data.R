@@ -110,8 +110,41 @@ message(sprintf("  (B) tiers from %s, keyed on %s: %d genes (%s)",
 
 # ---- (C) gene-level columns, carried forward -------------------------------
 prev <- fread(prev_data)
+## ---- trans block: take it from the release, not from the previous data.csv ----
+## The release derives the whole trans block in one pass (gene lists, context
+## lists, their counts, and credible-set coverage). Carrying these forward pinned
+## them to an older build: the lists disagreed with the release on about two
+## thirds of variant-gene pairs, and the counts disagreed with their own lists.
+## Release column names differ from the app's, so map them explicitly; anything
+## the release does not provide stays carried as before.
+.trans_map <- c(
+  trans_genes            = "trans_genes",
+  trans_contexts         = "trans_contexts",
+  trans_coverage         = "trans_coverage",
+  trans_n_genes          = "n_trans_genes",
+  trans_n_contexts       = "n_trans_contexts",
+  trans_gpQTL_genes      = "trans_genes_gpQTL",
+  trans_gpQTL_contexts   = "trans_contexts_gpQTL",
+  trans_gpQTL_n_genes    = "n_trans_genes_gpQTL",
+  trans_pQTL_genes       = "trans_genes_pQTL",
+  trans_pQTL_contexts    = "trans_contexts_pQTL",
+  trans_pQTL_n_genes     = "n_trans_genes_pQTL",
+  trans_snRNA_genes      = "trans_genes_snRNA",
+  trans_snRNA_contexts   = "trans_contexts_snRNA",
+  trans_snRNA_n_genes    = "n_trans_genes_snRNA",
+  trans_hotspot_programs = "trans_hotspot_programs",
+  trans_hotspot_contexts = "trans_contexts_hotspot_programs",
+  trans_hotspot_n_genes  = "n_trans_hotspot_programs")
+.rel_names  <- names(fread(tier_file, nrows = 1))
+.trans_have <- .trans_map[.trans_map %in% .rel_names]
+if (length(.trans_have) < length(.trans_map))
+  warning("[trans] release is missing: ",
+          paste(setdiff(.trans_map, .rel_names), collapse = ", "),
+          " -- those stay carried", call. = FALSE, immediate. = TRUE)
+
 carry <- grep("^(trans_|ct_)|^(gene_id|context|n_contexts|ordered_contexts|dist_tss|dist_tes|max_twas_z|max_twas_ctx|twas_sig|mr_sig|ctwas_sig|has_trans|xqtl_max_inclusion|variant_rank)$",
               names(prev), value = TRUE)
+carry <- setdiff(carry, names(.trans_have))
 ## Keyed on the variant AND the gene: these are gene-level columns, and 721
 ## variants carry more than one gene, so keying on the variant alone gave
 ## every gene at a variant the first gene's values.
@@ -122,6 +155,17 @@ message(sprintf("  (C) carried forward: %d columns for %d variant-gene pairs", l
 # ---- assemble ---------------------------------------------------------------
 out <- merge(A, C, by = c("variant_ID", "gene"), all.x = TRUE)
 out <- merge(out, tiers, by = tier_key, all.x = TRUE)
+
+## (C2) refresh the trans block from the release, keyed on the variant AND the gene
+if (length(.trans_have)) {
+  .tr <- fread(tier_file, select = c("variant_ID", "gene_name", unname(.trans_have)))
+  setnames(.tr, c("gene_name", unname(.trans_have)), c("gene", names(.trans_have)))
+  .tr <- unique(.tr, by = c("variant_ID", "gene"))
+  out <- merge(out, .tr, by = c("variant_ID", "gene"), all.x = TRUE)
+  .k <- names(.trans_have)[1]
+  message(sprintf("  (C2) trans block from release: %d columns, %d of %d pairs matched",
+                  length(.trans_have), sum(!is.na(out[[.k]]) & out[[.k]] != ""), nrow(out)))
+}
 
 out[, evidence_locus := "release"]
 out[, evidence_gene  := fifelse(is.na(context) & is.na(has_trans), "missing", "202605")]

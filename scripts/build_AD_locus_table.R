@@ -1918,7 +1918,7 @@ unique(res_adx[,.(context,context_short)])
 ## logical, and data.table coerces later assignments INTO that type ('CL6' -> NA,
 ## 3 -> TRUE) rather than upgrading it. Only pre-create columns it merely READS.
 .ST_assigned <- local({
-  txt <- readLines('gene_prio_utils.R', warn = FALSE)
+  txt <- readLines(file.path(SCRIPTS, 'gene_prio_utils.R'), warn = FALSE)
   st  <- grep('^\\s*SummarizeTable\\s*<-\\s*function', txt)
   blk <- txt[st[1]:length(txt)]
   nxt <- grep('^[A-Za-z.][A-Za-z0-9._]*\\s*<-\\s*function', blk); nxt <- nxt[nxt > 1]

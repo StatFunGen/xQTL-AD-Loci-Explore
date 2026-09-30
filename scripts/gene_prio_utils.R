@@ -263,6 +263,9 @@ SummarizeTable<-function(res_adx,
   ## cs70_2, cs95_1, ...); where a gene appears in several sets the widest one
   ## wins, matching how coverage_xqtl is chosen for cis above. Derived here so
   ## the value travels with the genes it describes.
+  ## Drop first: if this column was pre-created as a bare NA it is logical, and
+  ## data.table coerces the character values below into that type, giving all-NA.
+  if ('trans_coverage' %in% names(res_adx)) res_adx[, trans_coverage := NULL]
   res_adx[order(-have_trans_effect,-PIP),trans_coverage:={
     .k <- Method=='trans_finemapping'&gene_name!=''
     .g <- gene_name[.k]
