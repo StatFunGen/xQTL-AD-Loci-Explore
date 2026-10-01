@@ -658,11 +658,14 @@ res_c2[,locuscontext_id:=paste(cos_ID,gwas_source,gene_ID,sep='_')]
 
 res_c2[,n.variant:=length(unique(variant_ID)),by=.(locuscontext_id)]
 #add the matching context name with fp
-res_c2[,context_coloc:=str_remove(event_ID,gene_ID[1])|>str_remove('(_|:)$')|>str_remove('adjusted_gp_[0-9]+|P[0-9]+')|>str_remove('_\\|[A-Z0-9]+$')|>str_remove('chr[0-9]+__[A-Z0-9]+')|>str_remove('_chr[0-9]+:[0-9]+:[0-9]+:clu_[0-9]+_[+-]:[A-Z]+')|>str_remove('chr[0-9]+__')|>str_remove('_\\|')|>str_remove('_$'),by='gene_ID']
+res_c2[,context_coloc:=str_remove(event_ID,gene_ID[1])|>str_remove('(_|:)$')|>str_remove('adjusted_gp_[0-9]+|P[0-9]+')|>str_remove('_\\|[A-Z0-9]+$')|>str_remove('chr[0-9]+__[A-Z0-9]+')|>str_remove('_chr[0-9]+:[0-9]+:[0-9]+:clu_[0-9]+_[+-]:[A-Z]+')|>str_remove('chr[0-9]+__')|>str_remove('_\\|')|>str_remove('_$')|>str_remove('_?\\.factor_[0-9]+$'),by='gene_ID']
 unique(res_c2$context_coloc)|>sort()|>cat(sep = '\n')
 setdiff(res_c2$context_coloc,contexts$context_coloc)#OK
 
 res_c<-merge(res_c2[,-c('context')],unique(contexts[context_coloc!=''&!str_detect(context,'_u_|_p_')][,.(context_coloc,context)]),by='context_coloc',all.x = T)
+## fallback: newer exports name events by the registry context itself (e.g. AC_DeJager_eQTL)
+## rather than by the context_coloc alias; accept those directly.
+res_c[is.na(context) & context_coloc %in% contexts$context, context:=context_coloc]
 
 res_c[,chr:=seqid(variant_ID)]
 res_c[,pos:=pos(variant_ID)]

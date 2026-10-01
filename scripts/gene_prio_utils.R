@@ -258,6 +258,14 @@ SummarizeTable<-function(res_adx,
   res_adx[order(-have_trans_effect,-PIP),trans_genes:=paste(unique(gene_name[Method=='trans_finemapping'&gene_name!='']),collapse = '|'),by=.(variant_ID)]
   res_adx[order(-have_trans_effect,-PIP),n_trans_contexts:=length(unique(context[Method=='trans_finemapping'&context!=''])),by=.(variant_ID)]
   res_adx[order(-have_trans_effect,-PIP),trans_contexts:=paste(unique(context[Method=='trans_finemapping'&context!='']),collapse = '|'),by=.(variant_ID)]
+  ## transmap is a trans method too, but its rows carry no gene_name: the
+  ## target lives in event_ID. Kept in columns of its own so that nothing
+  ## cis-derived and nothing from trans_finemapping changes value.
+  res_adx[order(-have_trans_effect,-PIP),n_transmap_contexts:=length(unique(context[Method=='transmap'&context!=''])),by=.(variant_ID)]
+  res_adx[order(-have_trans_effect,-PIP),transmap_contexts:=paste(unique(context[Method=='transmap'&context!='']),collapse = '|'),by=.(variant_ID)]
+  res_adx[order(-have_trans_effect,-PIP),n_transmap_targets:=length(unique(event_ID[Method=='transmap'&event_ID!=''])),by=.(variant_ID)]
+  ## the target list itself is not emitted: one variant reaches up to 3,389
+  ## transmap targets, which makes a joined string unusable in a CSV.
   ## Credible-set coverage for each gene named in trans_genes, in the same order
   ## and with the same separator. The level is read off credibleset (cs50_1,
   ## cs70_2, cs95_1, ...); where a gene appears in several sets the widest one
