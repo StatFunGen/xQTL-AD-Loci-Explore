@@ -36,6 +36,10 @@ CTX_MAP <- list(
   "DLPFC_DeJager_eQTL" = c("DLPFC", "CUIMC1", "eQTL", "ct_Brain_xQTL"),
   "DLPFC_Klein_gpQTL_adjusted" = c("DLPFC", "Klein", "gpQTL", "ct_Brain_xQTL"),
   "DLPFC_Klein_gpQTL_unadjusted" = c("DLPFC", "Klein", "gpQTL", "ct_Brain_xQTL"),
+  ## transMap colocalization contexts; tissue is not recorded in the release metadata
+  "protein_transmap" = c("transMap", "", "pQTL", "ct_Brain_xQTL"),
+  "adjusted_glyco_transmap" = c("transMap", "", "gpQTL", "ct_Brain_xQTL"),
+  "metabolomics_transmap" = c("transMap", "", "metQTL", "ct_Brain_xQTL"),
   "Exc_DeJager_eQTL" = c("Excitatory", "CUIMC1", "eQTL", "ct_Exc_xQTL"),
   "Exc_Kellis_eQTL" = c("Excitatory", "MIT", "eQTL", "ct_Exc_xQTL"),
   "Exc_mega_eQTL" = c("Excitatory", "mega", "eQTL", "ct_Exc_xQTL"),
