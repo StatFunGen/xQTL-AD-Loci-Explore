@@ -773,7 +773,13 @@ observeEvent(input$locus_prev, {
                   "gpQTL"="trans_gpQTL_n_genes",
                   "Hotspot"="trans_hotspot_n_genes")
       keep <- rep(FALSE, nrow(d))
-      for (m in input$tmod) keep <- keep | na_fill(d[[colmap[[m]]]] > 0, FALSE)
+      for (m in input$tmod) {
+        ## transmap has no count column in data.csv; use the pairs file instead
+        if (m == "Transmap") { keep <- keep | d$ADlocus %in% transmap_loci; next }
+        .cc <- colmap[[m]]
+        if (is.null(.cc) || is.null(d[[.cc]])) next
+        keep <- keep | na_fill(d[[.cc]] > 0, FALSE)
+      }
       d <- d[keep, ]
     }
     d
@@ -1636,8 +1642,8 @@ output$gp_matrix <- renderUI({
     d <- trans_all
     if (is.null(d) || !nrow(d))
       return(div(class = "dc-note", "No trans pairs recorded in this release."))
-    mods <- c("Trans genes", "snRNA", "pQTL", "gpQTL", "Hotspot")
-    cols <- c(`Trans genes` = "#7b52ab", snRNA = "#2a78d6", pQTL = "#da532c",
+    mods <- c("Trans genes", "Transmap", "snRNA", "pQTL", "gpQTL", "Hotspot")
+    cols <- c(`Trans genes` = "#7b52ab", Transmap = "#8b1e3f", snRNA = "#2a78d6", pQTL = "#da532c",
               gpQTL = "#17868f", Hotspot = "#a8791b")
     tot <- sort(vapply(split(d$target, d$locus), function(z) length(unique(z)), integer(1)), decreasing = TRUE)
     top <- names(tot)[seq_len(min(12, length(tot)))]

@@ -131,7 +131,7 @@ home_river <- function(dark = FALSE) {
 }
 
 # ---- Trans circos ----------------------------------------------------------
-TMOD_COL <- c(`Trans genes` = "#7b52ab", snRNA = "#2a78d6", pQTL = "#da532c", gpQTL = "#17868f",
+TMOD_COL <- c(`Trans genes` = "#7b52ab", Transmap = "#8b1e3f", snRNA = "#2a78d6", pQTL = "#da532c", gpQTL = "#17868f",
               Hotspot = "#a8791b", `assay not recorded` = "#95a3ad")
 
 trans_loci_choices <- local({

@@ -69,3 +69,53 @@ if (!file.exists(.tf)) {
   out <- rbindlist(list(out, .tp), use.names = TRUE, fill = TRUE)
   rm(.td, .tp)
 }
+
+## ---- (T2) transmap pairs ------------------------------------------------
+## Transmap is trans evidence keyed on events rather than genes. Where the
+## event names an Ensembl gene the target can be placed on the genome and
+## drawn on the Trans tab; glycan, metabolite and hotspot-module targets
+## have no position and are left out, the same rule hotspot already follows.
+.tmf <- file.path(release,
+  "res_all_transmap_single_context_finemapping_cs95_overlapADloci.csv.gz")
+.gr2 <- if (nzchar(.gref) && file.exists(.gref)) fread(.gref, header = FALSE) else NULL
+if (!is.null(.gr2)) .gr2[, gid := tstrsplit(V4, ".", fixed = TRUE)[[1]]]
+
+if (!file.exists(.tmf)) {
+  message("  (T2) transmap table not in the release; no transmap pairs written")
+} else {
+  .tm <- fread(.tmf, select = c("variant_ID", "context", "event_ID", "ADlocus", "PIP"))
+  .tm <- .tm[!is.na(ADlocus) & nzchar(trimws(ADlocus))]
+  .tm[, gid := regmatches(event_ID, regexpr("ENSG[0-9]+", event_ID))[1], by = event_ID]
+  .n_all <- nrow(.tm)
+  .tm <- .tm[!is.na(gid) & grepl("^ENSG", gid)]
+  if (!is.null(.gr2)) {
+    .tm <- merge(.tm, unique(.gr2[, .(gid, sym = V5)], by = "gid"), by = "gid", all.x = TRUE)
+  } else .tm[, sym := NA_character_]
+  .tm[, gene := fifelse(is.na(sym) | sym == "", gid, sym)]
+  ## one row per locus-gene; the highest-PIP variant stands in for the pair
+  .tp2 <- .tm[order(-PIP)][, .(variant_ID = variant_ID[1],
+                               context    = context[1],
+                               max_pip    = PIP[1],
+                               n_ctx      = uniqueN(context),
+                               contexts   = paste(unique(context), collapse = "|")),
+                           by = .(ADlocus, gene, gene_id = gid)]
+  fwrite(.tp2, file.path(here, "transmap_pairs.csv"))
+  message(sprintf("  (T2) transmap pairs: %d locus-gene pairs across %d loci (%d of %d rows had a gene target)",
+                  nrow(.tp2), uniqueN(.tp2$ADlocus), nrow(.tm), .n_all))
+
+  ## gene_positions.csv must cover every trans target or its arc silently
+  ## vanishes. Top it up here from the reference so it stops being a hand
+  ## step. Chromosomes are stored bare (21, not chr21) to match the file.
+  .gpf <- file.path(here, "gene_positions.csv")
+  if (file.exists(.gpf) && !is.null(.gr2)) {
+    .gp   <- fread(.gpf)
+    .need <- setdiff(unique(c(out[cis_trans == "trans", gene], .tp2$gene)), .gp$gene)
+    if (length(.need)) {
+      .add <- unique(.gr2[V5 %in% .need, .(gene = V5, chr = sub("^chr", "", V1), start = V2, end = V3)], by = "gene")
+      fwrite(rbind(.gp, .add[, names(.gp), with = FALSE]), .gpf)
+      message(sprintf("  (T2) gene_positions.csv topped up with %d genes (%d still unplaceable)",
+                      nrow(.add), length(.need) - nrow(.add)))
+    }
+  }
+  rm(.tm, .tp2)
+}

@@ -243,6 +243,24 @@ trans_pairs <- local({
   }))
   if (is.null(out) || !nrow(out)) return(NULL)
   out <- unique(out)
+  ## transmap pairs, written by build_shiny_data.R from the release. Same
+  ## shape as the rows above. Transmap has no cis gene, so the source is
+  ## labelled by the locus; the arc still starts at the variant position.
+  .tmf <- "transmap_pairs.csv"
+  if (file.exists(.tmf)) {
+    .tm <- read.csv(.tmf, stringsAsFactors = FALSE)
+    if (nrow(.tm)) {
+      .vc  <- strsplit(as.character(.tm$variant_ID), ":", fixed = TRUE)
+      .tmo <- data.frame(ADlocus  = as.character(.tm$ADlocus),
+                         src      = as.character(.tm$ADlocus),
+                         src_chr  = sub("^chr", "", vapply(.vc, `[`, "", 1)),
+                         src_pos  = as.numeric(vapply(.vc, `[`, "", 2)),
+                         tgt      = as.character(.tm$gene),
+                         modality = "Transmap",
+                         stringsAsFactors = FALSE)
+      out <- rbind(out, .tmo[, names(out)])
+    }
+  }
   i <- match(out$tgt, gene_pos$gene)
   out$tgt_chr <- gene_pos$chr[i]
   out$tgt_pos <- (as.numeric(gene_pos$start[i]) + as.numeric(gene_pos$end[i])) / 2
@@ -251,9 +269,16 @@ trans_pairs <- local({
   out$x <- out$src_pos + chr_offsets$off[match(out$src_chr, chr_offsets$chr)]
   out$y <- out$tgt_pos + chr_offsets$off[match(out$tgt_chr, chr_offsets$chr)]
   out$modality <- factor(out$modality,
-                         levels = intersect(c("Trans genes", "snRNA", "pQTL", "gpQTL", "Hotspot"),
+                         levels = intersect(c("Trans genes", "snRNA", "pQTL", "gpQTL", "Hotspot", "Transmap"),
                                             unique(out$modality)))
   out
+})
+
+## loci with at least one placeable transmap target; used by the Trans tab
+## table filter, since transmap has no count column in data.csv yet
+transmap_loci <- local({
+  f <- "transmap_pairs.csv"
+  if (file.exists(f)) unique(as.character(read.csv(f, stringsAsFactors = FALSE)$ADlocus)) else character(0)
 })
 
 MOD_COL <- c(snRNA = "#2a78d6", pQTL = "#1baf7a", gpQTL = "#eda100", tpQTL = "#9c9a9c",
