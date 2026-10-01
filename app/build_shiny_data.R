@@ -162,7 +162,10 @@ prev <- if (.have_prev) fread(prev_data) else data.table(variant_ID = character(
   trans_snRNA_n_genes    = "n_trans_genes_snRNA",
   trans_hotspot_programs = "trans_hotspot_programs",
   trans_hotspot_contexts = "trans_contexts_hotspot_programs",
-  trans_hotspot_n_genes  = "n_trans_hotspot_programs")
+  trans_hotspot_n_genes  = "n_trans_hotspot_programs",
+  trans_transmap_n_targets  = "n_transmap_targets",
+  trans_transmap_n_contexts = "n_transmap_contexts",
+  trans_transmap_contexts   = "transmap_contexts")
 .rel_names  <- names(fread(tier_file, nrows = 1))
 .trans_have <- .trans_map[.trans_map %in% .rel_names]
 if (length(.trans_have) < length(.trans_map))

@@ -774,8 +774,15 @@ observeEvent(input$locus_prev, {
                   "Hotspot"="trans_hotspot_n_genes")
       keep <- rep(FALSE, nrow(d))
       for (m in input$tmod) {
-        ## transmap has no count column in data.csv; use the pairs file instead
-        if (m == "Transmap") { keep <- keep | d$ADlocus %in% transmap_loci; next }
+        ## transmap: either source counts. The per-variant column also sees metabolite
+        ## and glycan targets (no gene to draw); the pairs file sees transmap variants
+        ## that are not the variant on an app row. Each alone misses a few loci.
+        if (m == "Transmap") {
+          keep <- keep | d$ADlocus %in% transmap_loci
+          if (!is.null(d$trans_transmap_n_targets))
+            keep <- keep | na_fill(d$trans_transmap_n_targets > 0, FALSE)
+          next
+        }
         .cc <- colmap[[m]]
         if (is.null(.cc) || is.null(d[[.cc]])) next
         keep <- keep | na_fill(d[[.cc]] > 0, FALSE)
