@@ -248,6 +248,9 @@ mtd[Method=='multi_gene_finemapping',summary_file:=fp(out,'res_all_multi_gene_fi
 
 contexts<-fread(contexts_metadata)
 
+## optional, like the other trans sets: genome-wide trans fine-mapping is left out
+## when its calibration is not established
+if (nrow(mtd[Method=='trans_finemapping'])) {
 # Finemap
 res_ts<-fread(file.path(PROJECT_ROOT,mtd[Method=='trans_finemapping']$Path))
 
@@ -281,6 +284,7 @@ fwrite(res_tsf,fp(out,'res_all_transgene_single_context_finemapping_cs50orgreate
 res_tsf<-fread(fp(out,'res_all_transgene_single_context_finemapping_cs50orgreater.csv.gz'))
 
 mtd[Method=='trans_finemapping',summary_file:=fp(out,'res_all_transgene_single_context_finemapping_cs50orgreater.csv.gz')]
+}
 
 
 #snuc####
