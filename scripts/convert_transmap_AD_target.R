@@ -18,7 +18,7 @@ a <- commandArgs(TRUE); stopifnot(length(a) >= 2)
 x <- fread(a[1]); out <- a[2]; prev <- a[-(1:2)]
 ctx_of <- c(AC='AC_DeJager_eQTL', DLPFC='DLPFC_DeJager_eQTL', PCC='PCC_DeJager_eQTL',
             Exc='Exc_DeJager_eQTL', Inh='Inh_DeJager_eQTL', Oli='Oli_DeJager_eQTL',
-            OPC='OPC_DeJager_eQTL', Ast='Ast_10_Kellis_eQTL', Mic='Mic_12_Kellis_eQTL')
+            OPC='OPC_DeJager_eQTL', Ast='Ast_DeJager_eQTL', Mic='Mic_DeJager_eQTL')
 seen <- character(0)
 for (f in prev) { p <- fread(f); for (i in seq_len(nrow(p))) { e <- trimws(strsplit(p$event_ID[i], ';')[[1]]); c <- sub('_ENSG.*$', '', e); seen <- c(seen, paste(p$region_ID[i], c[!grepl('^AD_', c)])) } }
 seen <- unique(seen)
