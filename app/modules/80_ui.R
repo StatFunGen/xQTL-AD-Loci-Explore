@@ -1282,7 +1282,7 @@ ui <- page_navbar(
               "The served tables are plain delimited text; nothing here needs a client ",
               "library."),
             tags$pre(class = "dl-code",
-"# R\nd <- read.csv(\"AD_loci_xQTL_browser_table.csv\")\n\n# python\nimport pandas as pd\nd = pd.read_csv(\"AD_loci_unified_183refresh_variant_level_202609.csv.gz\")")),
+"# R\nd <- read.csv(\"AD_locus_evidence_20261002.csv\")\n\n# python\nimport pandas as pd\nd = pd.read_csv(\"AD_locus_variants_20261002.csv.gz\")")),
           div(class = "dl-card",
             div(class = "dl-card-t", "Evidence tiers"),
             div(class = "dl-tiers",
