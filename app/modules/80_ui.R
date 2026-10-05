@@ -1183,7 +1183,7 @@ ui <- page_navbar(
       div(class = "dl-top",
         h1(class = "doc-h", style = "font-size:22px;margin:0", "Downloads"),
         div(class = "dc-sub", style = "max-width:840px",
-          "Every table behind this browser, as flat files. Data release 2026-09, ",
+          "Every table behind this browser, as flat files. Data release 2026-10-02, ",
           "genome build GRCh38, coordinates 1-based. Large source files stay in the ",
           "dataset catalogue and are linked rather than served here.")),
         div(class = "ql-sec",
@@ -1236,7 +1236,7 @@ ui <- page_navbar(
                 if (is.null(gene_pos)) "—" else format(nrow(gene_pos), big.mark = ","),
                 "CSV", "28 KB", "gene, chr, start, end"))),
           dl_group("AD locus tables",
-            "the 2026-09-17 unified AD loci release",
+            "the 2026-10-02 unified AD loci release",
             list(
               dl_row("dlf_locsum", "AD locus summary",
                 "One row per AD locus: region, lead variant and gene count.",
@@ -1297,7 +1297,7 @@ ui <- page_navbar(
             div(class = "dl-cite",
               "The Alzheimer’s Disease Functional Genomics (FunGen-AD) Consortium. ",
               tags$b("Broad and deep dissection of Alzheimer’s disease genetics with "),
-              tags$b("FunGen-xQTL."), " Data release 2026-09."))))),
+              tags$b("FunGen-xQTL."), " Data release 2026-10-02."))))),
     nav_panel(
       "Documentation", icon = icon("circle-info"),
     div(class = "doc",

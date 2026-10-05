@@ -1070,24 +1070,29 @@ observeEvent(input$locus_prev, {
   .dl_file <- function(path, name) downloadHandler(
     filename = function() name,
     content  = function(f) file.copy(path, f, overwrite = TRUE))
-  output$dlf_browser <- .dl_file("data.csv", "AD_locus_evidence_2026-09.csv")
-  output$dlf_genepos <- .dl_file("gene_positions.csv", "gene_coordinates_GRCh38_2026-09.csv")
-  output$dlf_locsum  <- .dl_file(
-    "downloads/AD_locus_summary_release.csv",
-    "AD_locus_summary_2026-09.csv")
+  output$dlf_browser <- .dl_file("data.csv", "AD_locus_evidence_20261002.csv")
+  output$dlf_genepos <- .dl_file("gene_positions.csv", "gene_coordinates_GRCh38_20261002.csv")
+  ## locus summary is written from the loaded locus table so it always matches this release
+  .locsum_df <- function() { t <- locus_table
+    data.frame(AD_locus = t$ADlocus, region = t$region, chr = t$chr, lead_variant = t$lead, best_tier = t$best,
+               top_gene = t$top_gene, cell_types = t$cells, modalities = t$mods, n_genes = t$n_genes,
+               n_records = t$n_rows, stringsAsFactors = FALSE) }
+  output$dlf_locsum <- downloadHandler(filename = function() "AD_locus_summary_20261002.csv",
+    content = function(f) utils::write.csv(.locsum_df(), f, row.names = FALSE))
   output$dlf_varlvl  <- .dl_file(
     "downloads/AD_locus_variants_release.csv.gz",
-    "AD_locus_variants_2026-09.csv.gz")
+    "AD_locus_variants_20261002.csv.gz")
   output$dlf_tier   <- .dl_file("downloads/gene_tier_assignment_release.csv",
-    "AD_gene_tier_assignment_2026-09.csv")
+    "AD_gene_tier_assignment_20261002.csv")
   output$dlf_xlsx    <- .dl_file(
     "downloads/AD_loci_xQTL_summary_release.xlsx",
-    "AD_locus_xQTL_summary_2026-09.xlsx")
+    "AD_locus_xQTL_summary_20261002.xlsx")
   output$dl_zip <- downloadHandler(
-    filename = function() "AD_loci_explorer_2026-09.zip",
+    filename = function() "AD_loci_explorer_20261002.zip",
     content  = function(f) {
       fs <- c("data.csv", "gene_positions.csv",
               list.files("downloads", full.names = TRUE))
+      .ls <- file.path(tempdir(), "AD_locus_summary_release.csv"); utils::write.csv(.locsum_df(), .ls, row.names = FALSE); fs <- c(fs, .ls)
       fs <- fs[file.exists(fs)]
       if (requireNamespace("zip", quietly = TRUE)) zip::zipr(f, fs)
       else utils::zip(f, fs, flags = "-j9X")
@@ -1206,7 +1211,7 @@ observeEvent(input$locus_prev, {
   })
 
   output$dl_loci_csv <- downloadHandler(
-    filename = function() "AD_loci_overview_2026-09.csv",
+    filename = function() "AD_loci_overview_20261002.csv",
     content  = function(f) {
       t <- loci_view()
       o <- data.frame(ADlocus = t$ADlocus, region = t$region, lead_variant = t$lead,
@@ -1249,7 +1254,7 @@ observeEvent(input$locus_prev, {
   })
 
   output$dl_figB_csv <- downloadHandler(
-    filename = function() "cell_type_by_tier_2026-09.csv",
+    filename = function() "cell_type_by_tier_20261002.csv",
     content  = function(f) {
       m <- ctx_tier_counts
       o <- data.frame(cell_type = rownames(m), m, total = rowSums(m),
@@ -1929,7 +1934,7 @@ output$gp_matrix <- renderUI({
   }
 
   # ---- P2.14 / P2.15 provenance ------------------------------------------
-  .rel_lab  <- if (exists("RELEASE_LABEL")) as.character(RELEASE_LABEL) else "2026-09"
+  .rel_lab  <- if (exists("RELEASE_LABEL")) as.character(RELEASE_LABEL) else "2026-10-02"
   .bld_lab  <- if (exists("BUILD_LABEL")) as.character(BUILD_LABEL) else "GRCh38"
   .cite_txt <- "The Alzheimer Disease Functional Genomics (FunGen-AD) Consortium. Broad and deep dissection of Alzheimer disease genetics with FunGen-xQTL."
   .cur_q <- function() {
