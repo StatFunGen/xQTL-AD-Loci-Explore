@@ -57,6 +57,12 @@ trans_contexts_pQTL	pQTL contexts				8	1	0	1	0
 n_trans_genes_gpQTL	# gpQTL trans genes	trans xQTL effect			7	1	0	0	0				
 trans_genes_gpQTL	gpQTL genes				8	1	0	1	0				
 trans_contexts_gpQTL	gpQTL contexts				8	1	0	1	0				
+n_transmap_targets	# transMap targets	trans xQTL effect			7	1	0	0	0				
+n_transmap_contexts	# transMap contexts				8	1	0	1	0				
+transmap_contexts	transMap contexts				8	1	0	1	0				
+n_trans_cca_programs	# trans cca programs	trans xQTL effect			7	1	0	0	0				
+trans_cca_programs	cca programs				8	1	0	1	0				
+trans_contexts_cca_programs	cca programs contexts				8	1	0	1	0				
 n_trans_hotspot_programs	# trans hotspots programs genes	trans xQTL effect			7	1	0	0	0				
 trans_hotspot_programs	hotspots programs				8	1	0	1	0				
 trans_contexts_hotspot_programs	hotspots programs contexts				8	1	0	1	0				
