@@ -1,4 +1,4 @@
-# Released tables - 188-loci build
+# Released tables - 195-loci build
 
 Locus-level results for the 195 candidate Alzheimer's disease loci in this
 release, produced by build_AD_locus_table.R. See the repository README for how

@@ -1,6 +1,6 @@
 # Dependencies
 
-Recorded from the environment the 188-loci release was built in. These are the
+Recorded from the environment the 195-loci release was built in. These are the
 versions actually installed, not a resolved lockfile — `renv` is not used in
 this project, so pinning is by record rather than by restore.
 
