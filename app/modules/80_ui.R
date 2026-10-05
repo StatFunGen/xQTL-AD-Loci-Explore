@@ -941,7 +941,7 @@ ui <- page_navbar(
             "is that count. Bar length is on a log scale, because the top locus reaches ",
             "more than a hundred times as many genes as most others. Segments split the ",
             "count by the kind of trans evidence behind it; a gene supported by two assays ",
-            "appears in both segments. Hotspot targets are programs rather than genes."),
+            "appears in both segments."),
           uiOutput("sum_trans")),
   ),
 

@@ -1646,10 +1646,17 @@ output$gp_matrix <- renderUI({
   output$sum_mod <- renderUI(.bars(mod_counts))
 
   output$sum_trans <- renderUI({
-    d <- trans_all
+    ## distal targets: the selected trans fine-mapping set (stored as eQTL) plus transmap pairs
+    d <- if (!is.null(trans_all) && nrow(trans_all)) trans_all[, c("locus", "target", "modality")] else NULL
+    if (!is.null(d)) d$modality[d$modality == "eQTL"] <- "Trans genes"
+    if (file.exists("transmap_pairs.csv")) {
+      .tm <- read.csv("transmap_pairs.csv", stringsAsFactors = FALSE)
+      if (nrow(.tm)) d <- rbind(d, data.frame(locus = .tm$ADlocus, target = .tm$gene, modality = "Transmap", stringsAsFactors = FALSE))
+    }
+    if (!is.null(d)) d <- d[!is.na(d$target) & nzchar(d$target), , drop = FALSE]
     if (is.null(d) || !nrow(d))
       return(div(class = "dc-note", "No trans pairs recorded in this release."))
-    mods <- c("Trans genes", "Transmap", "snRNA", "pQTL", "gpQTL", "Hotspot")
+    mods <- intersect(c("Trans genes", "Transmap", "snRNA", "pQTL", "gpQTL", "Hotspot"), unique(d$modality))
     cols <- c(`Trans genes` = "#7b52ab", Transmap = "#8b1e3f", snRNA = "#2a78d6", pQTL = "#da532c",
               gpQTL = "#17868f", Hotspot = "#a8791b")
     tot <- sort(vapply(split(d$target, d$locus), function(z) length(unique(z)), integer(1)), decreasing = TRUE)

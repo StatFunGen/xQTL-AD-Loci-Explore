@@ -130,12 +130,12 @@ ct_rows <- function(col) {
     keep <- !is.na(dat[[tc]]) & nzchar(dat[[tc]])
     if (!any(keep)) next
     d   <- dat[keep, , drop = FALSE]
-    lst <- strsplit(d[[tc]], "\\s*,\\s*")
+    lst <- strsplit(d[[tc]], "\\s*[,|]\\s*")
     n   <- lengths(lst)
     ## coverage: per association for the generic set, cs95 by construction otherwise
     .cv <- rep(if (m == "eQTL") "" else "cs95", sum(n))
     if (m == "eQTL" && "trans_coverage" %in% names(d)) {
-      .cl <- strsplit(as.character(d$trans_coverage), ",", fixed = TRUE)
+      .cl <- strsplit(as.character(d$trans_coverage), "\\s*[,|]\\s*")
       if (identical(lengths(.cl), n)) .cv <- trimws(unlist(.cl))
     }
     n   <- lengths(lst)
