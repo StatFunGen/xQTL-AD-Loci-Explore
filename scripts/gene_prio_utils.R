@@ -258,6 +258,31 @@ SummarizeTable<-function(res_adx,
   res_adx[order(-have_trans_effect,-PIP),trans_genes:=paste(unique(gene_name[Method=='trans_finemapping'&gene_name!='']),collapse = '|'),by=.(variant_ID)]
   res_adx[order(-have_trans_effect,-PIP),n_trans_contexts:=length(unique(context[Method=='trans_finemapping'&context!=''])),by=.(variant_ID)]
   res_adx[order(-have_trans_effect,-PIP),trans_contexts:=paste(unique(context[Method=='trans_finemapping'&context!='']),collapse = '|'),by=.(variant_ID)]
+  ## transmap is a trans method too, but its rows carry no gene_name: the
+  ## target lives in event_ID. Kept in columns of its own so that nothing
+  ## cis-derived and nothing from trans_finemapping changes value.
+  res_adx[order(-have_trans_effect,-PIP),n_transmap_contexts:=length(unique(context[Method=='transmap'&context!=''])),by=.(variant_ID)]
+  res_adx[order(-have_trans_effect,-PIP),transmap_contexts:=paste(unique(context[Method=='transmap'&context!='']),collapse = '|'),by=.(variant_ID)]
+  res_adx[order(-have_trans_effect,-PIP),n_transmap_targets:=length(unique(event_ID[Method=='transmap'&event_ID!=''])),by=.(variant_ID)]
+  ## the target list itself is not emitted: one variant reaches up to 3,389
+  ## transmap targets, which makes a joined string unusable in a CSV.
+  ## Credible-set coverage for each gene named in trans_genes, in the same order
+  ## and with the same separator. The level is read off credibleset (cs50_1,
+  ## cs70_2, cs95_1, ...); where a gene appears in several sets the widest one
+  ## wins, matching how coverage_xqtl is chosen for cis above. Derived here so
+  ## the value travels with the genes it describes.
+  ## Drop first: if this column was pre-created as a bare NA it is logical, and
+  ## data.table coerces the character values below into that type, giving all-NA.
+  if ('trans_coverage' %in% names(res_adx)) res_adx[, trans_coverage := NULL]
+  res_adx[order(-have_trans_effect,-PIP),trans_coverage:={
+    .k <- Method=='trans_finemapping'&gene_name!=''
+    .g <- gene_name[.k]
+    .l <- suppressWarnings(as.integer(sub('cs','',str_extract(credibleset[.k],'cs[0-9]+'))))
+    paste(vapply(unique(.g), function(.x){
+      .v <- .l[.g==.x]; .v <- .v[!is.na(.v)]
+      if(!length(.v)) '' else paste0('cs',max(.v))
+    }, character(1)), collapse = '|')
+  },by=.(variant_ID)]
   
   
    #others trans

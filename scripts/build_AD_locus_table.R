@@ -72,7 +72,24 @@ STAMP <- sub('^out_', '', basename(out))   # version stamp used in output filena
 dir.create(out)
 
 
+## The shipped registry declares summary_file / summary_file_ad but leaves them
+## empty, so fread types them logical. A later 'summary_file := <path>' is then
+## coerced back to logical (NA) and the per-method overlap loop finds nothing to
+## read. The column has to be dropped and recreated as character -- assigning to
+## it in place would just be coerced again. Column order is restored afterwards.
+.fix_registry_types <- function(d) {
+  .nm <- names(d)
+  for (.pc in c('summary_file', 'summary_file_ad')) {
+    if (.pc %in% .nm && !is.character(d[[.pc]])) {
+      d[, (.pc) := NULL]
+      d[, (.pc) := NA_character_]
+    }
+  }
+  setcolorder(d, .nm)
+  d[]
+}
 mtd<-fread(metadata_analysis,header = T)
+mtd <- .fix_registry_types(mtd)
 contexts<-fread(contexts_metadata)
 
 #0)prep integration####
@@ -231,6 +248,9 @@ mtd[Method=='multi_gene_finemapping',summary_file:=fp(out,'res_all_multi_gene_fi
 
 contexts<-fread(contexts_metadata)
 
+## optional, like the other trans sets: genome-wide trans fine-mapping is left out
+## when its calibration is not established
+if (nrow(mtd[Method=='trans_finemapping'])) {
 # Finemap
 res_ts<-fread(file.path(PROJECT_ROOT,mtd[Method=='trans_finemapping']$Path))
 
@@ -264,6 +284,7 @@ fwrite(res_tsf,fp(out,'res_all_transgene_single_context_finemapping_cs50orgreate
 res_tsf<-fread(fp(out,'res_all_transgene_single_context_finemapping_cs50orgreater.csv.gz'))
 
 mtd[Method=='trans_finemapping',summary_file:=fp(out,'res_all_transgene_single_context_finemapping_cs50orgreater.csv.gz')]
+}
 
 
 #snuc####
@@ -641,11 +662,14 @@ res_c2[,locuscontext_id:=paste(cos_ID,gwas_source,gene_ID,sep='_')]
 
 res_c2[,n.variant:=length(unique(variant_ID)),by=.(locuscontext_id)]
 #add the matching context name with fp
-res_c2[,context_coloc:=str_remove(event_ID,gene_ID[1])|>str_remove('(_|:)$')|>str_remove('adjusted_gp_[0-9]+|P[0-9]+')|>str_remove('_\\|[A-Z0-9]+$')|>str_remove('chr[0-9]+__[A-Z0-9]+')|>str_remove('_chr[0-9]+:[0-9]+:[0-9]+:clu_[0-9]+_[+-]:[A-Z]+')|>str_remove('chr[0-9]+__')|>str_remove('_\\|')|>str_remove('_$'),by='gene_ID']
+res_c2[,context_coloc:=str_remove(event_ID,gene_ID[1])|>str_remove('(_|:)$')|>str_remove('adjusted_gp_[0-9]+|P[0-9]+')|>str_remove('_\\|[A-Z0-9]+$')|>str_remove('chr[0-9]+__[A-Z0-9]+')|>str_remove('_chr[0-9]+:[0-9]+:[0-9]+:clu_[0-9]+_[+-]:[A-Z]+')|>str_remove('chr[0-9]+__')|>str_remove('_\\|')|>str_remove('_$')|>str_remove('_?\\.factor_[0-9]+$'),by='gene_ID']
 unique(res_c2$context_coloc)|>sort()|>cat(sep = '\n')
 setdiff(res_c2$context_coloc,contexts$context_coloc)#OK
 
 res_c<-merge(res_c2[,-c('context')],unique(contexts[context_coloc!=''&!str_detect(context,'_u_|_p_')][,.(context_coloc,context)]),by='context_coloc',all.x = T)
+## fallback: newer exports name events by the registry context itself (e.g. AC_DeJager_eQTL)
+## rather than by the context_coloc alias; accept those directly.
+res_c[is.na(context) & context_coloc %in% contexts$context, context:=context_coloc]
 
 res_c[,chr:=seqid(variant_ID)]
 res_c[,pos:=pos(variant_ID)]
@@ -981,7 +1005,13 @@ cat('[LD] precomputed variant correlations:', nrow(variants_cors), 'pairs,',
     if (!.miss_col %in% names(resfp)) resfp[, (.miss_col) := NA_real_]
   }
   #add pip, z
-  mtd<-fread(metadata_analysis,header = T,select = 1:6)
+  ## NOTE: this re-read previously used select = 1:6, which dropped summary_file /
+## summary_file_ad. Those columns are written back to the registry by the earlier
+## per-method stages, and the AD-locus overlap loop below selects on
+## file.exists(summary_file); truncating them here left only the methods assigned
+## after this point, so a clean run produced 6 of the 20 _overlapADloci tables.
+mtd<-fread(metadata_analysis,header = T)
+mtd <- .fix_registry_types(mtd)
   
   res_gw<-rbindlist(lapply(file.path(PROJECT_ROOT,mtd[Method=='AD_GWAS_finemapping']$Path),function(f)fread(f)),fill = T)
 ## FIX (2026-09-17): the 8-study GWAS fine-mapping files encode the credible-set index as
@@ -1375,6 +1405,7 @@ fwrite(mtd,metadata_analysis)
 #outputs:ADlocus variant ADlocus_event ADmethod
 #here we want to integrate GWAS locus found in i) single gwas finemapping, ii) ADxQTL coloc, iii) ADxAD colocs
 mtd<-fread(metadata_analysis)
+mtd <- .fix_registry_types(mtd)
 mtd[summary_file=='']
 
 res_gwf<-fread(mtd[Method=='AD_GWAS_finemapping']$summary_file[1])
@@ -1534,6 +1565,7 @@ fwrite(res_adfv[order(locus_index)],'../../../../../xqtl-resources/data/genes/AD
 #III) Get the merged long variant-level table  AD xQTL overlap: each row a variant-ADlocus-Method-context-gene####
 #add those ADlocus annot to all variant level summ table
 mtd<-fread(metadata_analysis)  ## was fp(out,..): config file lives in staging (cwd), never written to out/
+mtd <- .fix_registry_types(mtd)
 res_adfv<-fread(fp(out,'/AD_loci_unified_cs95orColocs_Pval1e5_variant_level.csv.gz'))
 update_summary_ad=FALSE
 
@@ -1635,6 +1667,7 @@ fwrite(mtd,metadata_analysis)
 #get the long AD overlap table####
 
 mtd<-fread(metadata_analysis)
+mtd <- .fix_registry_types(mtd)
 res_adfv<-fread(fp(out,'AD_loci_unified_cs95orColocs_Pval1e5_variant_level.csv.gz'))
 
 
@@ -1892,7 +1925,7 @@ unique(res_adx[,.(context,context_short)])
 ## logical, and data.table coerces later assignments INTO that type ('CL6' -> NA,
 ## 3 -> TRUE) rather than upgrading it. Only pre-create columns it merely READS.
 .ST_assigned <- local({
-  txt <- readLines('gene_prio_utils.R', warn = FALSE)
+  txt <- readLines(file.path(SCRIPTS, 'gene_prio_utils.R'), warn = FALSE)
   st  <- grep('^\\s*SummarizeTable\\s*<-\\s*function', txt)
   blk <- txt[st[1]:length(txt)]
   nxt <- grep('^[A-Za-z.][A-Za-z0-9._]*\\s*<-\\s*function', blk); nxt <- nxt[nxt > 1]

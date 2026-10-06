@@ -38,7 +38,15 @@ outfile <- if (length(args) >= 2) args[2] else "data_refreshed.csv"
 here      <- dirname(normalizePath(sub("--file=", "", grep("--file=", commandArgs(FALSE), value = TRUE)[1])))
 prev_data <- file.path(here, "data.csv")
 
-stopifnot(dir.exists(release), file.exists(prev_data))
+## The release is required. The previous data.csv is not: it only supplies the
+## columns that still have no release source. Without it the build still runs,
+## and reports which columns come out empty instead of refusing to start.
+stopifnot(dir.exists(release))
+.have_prev <- file.exists(prev_data)
+if (!.have_prev)
+  warning("[carry] no previous data.csv at ", prev_data,
+          "; building from the release alone. Columns with no release source ",
+          "will be empty.", call. = FALSE, immediate. = TRUE)
 
 # ---- (A) locus / variant evidence, from the release ------------------------
 xl <- list.files(release, pattern = "^unified_AD_loci_xQTL_summary.*\\.xlsx$", full.names = TRUE)
@@ -86,6 +94,26 @@ if (length(missing)) stop("release xlsx is missing expected columns: ", paste(mi
 
 A <- new[, names(map), with = FALSE]
 setnames(A, names(map), unname(map))
+
+## Context and the ordered-context list also come from the workbook: they sit at
+## the same one-row-per-variant-gene granularity as the rest of section (A).
+## Carrying them forward from the previous data.csv left them without any context
+## added in this release, so newly admitted genes showed no evidence at all.
+## Matched by pattern so that a reworded workbook header warns instead of
+## silently falling back to the stale carried value.
+## gene_id joins them: the app holds 189 blanks and the workbook supplies an ID
+## for them, with no row where the two hold different IDs, so this only fills gaps.
+## ordered_contexts is no longer sought here: the workbook has seventeen
+## columns of that name and none can be singled out, and (C6) now takes the
+## assembled string from the release instead.
+.ctx_src <- c(context          = "^Context$",
+              gene_id          = "^gene\\.ID$")
+for (.nm in names(.ctx_src)) {
+  .col <- grep(.ctx_src[[.nm]], names(new), value = TRUE)
+  if (length(.col) == 1) A[, (.nm) := new[[.col]]]
+  else warning("[context] no single workbook column matches ", .ctx_src[[.nm]],
+               "; ", .nm, " stays carried", call. = FALSE, immediate. = TRUE)
+}
 message(sprintf("  (A) refreshed: %d rows, %d loci", nrow(A), uniqueN(A$ADlocus)))
 
 # ---- (B) tier assignment ----------------------------------------------------
@@ -109,17 +137,267 @@ message(sprintf("  (B) tiers from %s, keyed on %s: %d genes (%s)",
 
 
 # ---- (C) gene-level columns, carried forward -------------------------------
-prev <- fread(prev_data)
+prev <- if (.have_prev) fread(prev_data) else data.table(variant_ID = character(0), gene = character(0))
+## ---- trans block: take it from the release, not from the previous data.csv ----
+## The release derives the whole trans block in one pass (gene lists, context
+## lists, their counts, and credible-set coverage). Carrying these forward pinned
+## them to an older build: the lists disagreed with the release on about two
+## thirds of variant-gene pairs, and the counts disagreed with their own lists.
+## Release column names differ from the app's, so map them explicitly; anything
+## the release does not provide stays carried as before.
+.trans_map <- c(
+  trans_genes            = "trans_genes",
+  trans_contexts         = "trans_contexts",
+  trans_coverage         = "trans_coverage",
+  trans_n_genes          = "n_trans_genes",
+  trans_n_contexts       = "n_trans_contexts",
+  trans_gpQTL_genes      = "trans_genes_gpQTL",
+  trans_gpQTL_contexts   = "trans_contexts_gpQTL",
+  trans_gpQTL_n_genes    = "n_trans_genes_gpQTL",
+  trans_pQTL_genes       = "trans_genes_pQTL",
+  trans_pQTL_contexts    = "trans_contexts_pQTL",
+  trans_pQTL_n_genes     = "n_trans_genes_pQTL",
+  trans_snRNA_genes      = "trans_genes_snRNA",
+  trans_snRNA_contexts   = "trans_contexts_snRNA",
+  trans_snRNA_n_genes    = "n_trans_genes_snRNA",
+  trans_hotspot_programs = "trans_hotspot_programs",
+  trans_hotspot_contexts = "trans_contexts_hotspot_programs",
+  trans_hotspot_n_genes  = "n_trans_hotspot_programs",
+  trans_transmap_n_targets  = "n_transmap_targets",
+  trans_transmap_n_contexts = "n_transmap_contexts",
+  trans_transmap_contexts   = "transmap_contexts")
+.rel_names  <- names(fread(tier_file, nrows = 1))
+.trans_have <- .trans_map[.trans_map %in% .rel_names]
+if (length(.trans_have) < length(.trans_map))
+  warning("[trans] release is missing: ",
+          paste(setdiff(.trans_map, .rel_names), collapse = ", "),
+          " -- those stay carried", call. = FALSE, immediate. = TRUE)
+
 carry <- grep("^(trans_|ct_)|^(gene_id|context|n_contexts|ordered_contexts|dist_tss|dist_tes|max_twas_z|max_twas_ctx|twas_sig|mr_sig|ctwas_sig|has_trans|xqtl_max_inclusion|variant_rank)$",
               names(prev), value = TRUE)
-C <- unique(prev[, c("variant_ID", carry), with = FALSE], by = "variant_ID")
-message(sprintf("  (C) carried forward: %d columns for %d variants", length(carry), nrow(C)))
+carry <- setdiff(carry, names(.trans_have))
+
+## ---- gene-level columns that the release recomputes every run ----------
+## Same failure mode as the trans block: these were carried forward from the
+## previous data.csv, so they stayed pinned to whatever build first produced
+## them. Checked against the release on 4,195 app rows, the carried copies
+## disagreed on roughly two thirds of variant-gene pairs, by up to 6.5 Mb for
+## the TSS/TES distances. The release recomputes all of them, so it is their
+## source. ordered_contexts is deliberately NOT here: the app holds a rendered
+## display string (e.g. "Inh eQTL- (T5,n=2)") that no single release column
+## supplies, so it stays carried until its derivation is reproduced here.
+.rel_map <- c(dist_tss           = "distance_from_tss",
+              dist_tes           = "distance_from_tes",
+              twas_sig           = "TWAS_signif",
+              mr_sig             = "MR_signif",
+              ctwas_sig          = "cTWAS_signif",
+              max_twas_z         = "twas_z_gene_max",
+              max_twas_ctx       = "twas_z_gene_max_context",
+              variant_rank       = "variant_rank_xqtl",
+              xqtl_max_inclusion = "max_variant_inclusion_probability",
+              n_contexts         = "n_contexts")
+.rel_names <- names(fread(tier_file, nrows = 0))
+.rel_have  <- .rel_map[.rel_map %in% .rel_names]
+.rel_miss  <- .rel_map[!.rel_map %in% .rel_names]
+if (length(.rel_miss))
+  warning("[release] not found in ", basename(tier_file),
+          ", these stay carried forward and may be stale: ",
+          paste(names(.rel_miss), collapse = ", "),
+          call. = FALSE, immediate. = TRUE)
+carry <- setdiff(carry, names(.rel_have))
+carry <- setdiff(carry, "has_trans")
+carry <- setdiff(carry, grep("^ct_", carry, value = TRUE))
+carry <- setdiff(carry, "ordered_contexts")
+carry <- setdiff(carry, names(A))   # section (A) wins over the carried copy
+## Keyed on the variant AND the gene: these are gene-level columns, and 721
+## variants carry more than one gene, so keying on the variant alone gave
+## every gene at a variant the first gene's values.
+C <- unique(prev[, c("variant_ID", "gene", carry), with = FALSE],
+            by = c("variant_ID", "gene"))
+message(sprintf("  (C) carried forward: %d columns for %d variant-gene pairs%s",
+                length(carry), nrow(C),
+                if (length(carry)) paste0(" -- ", paste(sort(carry), collapse = ", ")) else ""))
+## Everything named above still comes from the previous data.csv and can go
+## stale the way the trans block did. As of this patch that is ordered_contexts
+## (a rendered display string with no single release column) and the ct_*_xQTL
+## cell-type flags (the release'"'"'s celltypes column is empty, and no other
+## column was confirmed to mean the same thing). Both need a decision about
+## what they should be derived from before they can move to the release.
 
 # ---- assemble ---------------------------------------------------------------
-out <- merge(A, C, by = "variant_ID", all.x = TRUE)
+out <- merge(A, C, by = c("variant_ID", "gene"), all.x = TRUE)
 out <- merge(out, tiers, by = tier_key, all.x = TRUE)
 
+## (C2) refresh the trans block from the release, keyed on the variant AND the gene
+if (length(.trans_have)) {
+  .tr <- fread(tier_file, select = c("variant_ID", "gene_name", unname(.trans_have)))
+  setnames(.tr, c("gene_name", unname(.trans_have)), c("gene", names(.trans_have)))
+  .tr <- unique(.tr, by = c("variant_ID", "gene"))
+  out <- merge(out, .tr, by = c("variant_ID", "gene"), all.x = TRUE)
+  .k <- names(.trans_have)[1]
+  message(sprintf("  (C2) trans block from release: %d columns, %d of %d pairs matched",
+                  length(.trans_have), sum(!is.na(out[[.k]]) & out[[.k]] != ""), nrow(out)))
+}
+
+## (C3) refresh the gene-level block from the release, keyed on variant AND gene
+if (length(.rel_have)) {
+  .rv <- fread(tier_file, select = c("variant_ID", "gene_name", unname(.rel_have)))
+  setnames(.rv, c("gene_name", unname(.rel_have)), c("gene", names(.rel_have)))
+  .nonblank <- function(x) !(is.na(x) | trimws(as.character(x)) == "")
+  .rv[, .nb := Reduce(`+`, lapply(.SD, function(x) as.integer(.nonblank(x)))),
+      .SDcols = names(.rel_have)]
+  setorderv(.rv, c("variant_ID", "gene", ".nb"), c(1L, 1L, -1L))
+  .rv <- unique(.rv, by = c("variant_ID", "gene"))
+  .rv[, .nb := NULL]
+  out <- merge(out, .rv, by = c("variant_ID", "gene"), all.x = TRUE)
+  message(sprintf("  (C3) gene-level from release: %d columns; %s",
+                  length(.rel_have),
+                  paste(sprintf("%s=%d", names(.rel_have),
+                                vapply(names(.rel_have),
+                                       function(k) sum(.nonblank(out[[k]])), integer(1))),
+                        collapse = " ")))
+}
+
 out[, evidence_locus := "release"]
+## (C6) ordered_contexts, read from the release rather than carried.
+##
+## The release already assembles this string as xQTL_effects; nothing needs
+## rebuilding. gene_prio_utils.R:199-216 composes it per variant and gene:
+## the group label, then the sign of conditional_effect ('.' when absent),
+## then the sign of coef (omitted when absent), then '(<confidence_lvl>,n=<n>)'
+## where n counts distinct contexts for that locus, gene and group. Entries are
+## ordered by confidence level, then descending |twas_z|, then descending
+## cos_npc, and joined with '|'. The app's helpers split on ';', so only the
+## separator changes here.
+##
+## The carried copy had gone stale: it matches the release on 14% of the pairs
+## where both exist, and where it differs the label and sign agree while the
+## count does not -- an old n against a current one. It also disagreed with
+## n_contexts, which is now release-sourced, on more than half of all rows.
+if ("xQTL_effects" %in% .rel_names) {
+  .oc <- fread(tier_file, select = c("variant_ID", "gene_name", "xQTL_effects"))
+  setnames(.oc, c("gene_name", "xQTL_effects"), c("gene", "ordered_contexts"))
+  .oc <- unique(.oc[!is.na(ordered_contexts) & ordered_contexts != ""],
+                by = c("variant_ID", "gene"))
+  .oc[, ordered_contexts := gsub("|", "; ", ordered_contexts, fixed = TRUE)]
+  out <- merge(out, .oc, by = c("variant_ID", "gene"), all.x = TRUE)
+  message(sprintf("  (C6) ordered_contexts from release: %d of %d pairs",
+                  sum(!is.na(out$ordered_contexts)), nrow(out)))
+} else {
+  warning("[release] no xQTL_effects column; ordered_contexts left empty",
+          call. = FALSE, immediate. = TRUE)
+  out[, ordered_contexts := NA_character_]
+}
+
+## (C5) cell-type flags, derived from the release rather than carried forward.
+##
+## Follows how the upstream code assigns cell types: it does not keep a map in
+## the script, it joins contexts_metadata.csv. complete_ADlocus_level_summary.R
+## merges sn-sQTL cell types against that table's context_snsQTL column, and
+## build_AD_locus_table.R groups bulk monocyte, macrophage and microglia into
+## one immune group. Both rules are reproduced here from the same table, so a
+## context added to the config is picked up without editing this file.
+##
+## The context list per variant-gene pair is xQTL_contexts, the release's copy
+## of gene_prio_utils.R's XQTL_contexts. The app's own `context` column holds
+## at most one context per row and is not a substitute.
+##
+## This changes what the flags say. The carried values cannot be reproduced
+## from any context list in the release: of 1,898 rows carrying ct_Exc_xQTL,
+## 594 have no contexts at all and 549 more have contexts naming no excitatory
+## type. They are residue from an older build, so roughly a third to a half of
+## the current ticks disappear here. That is the correction, not a regression.
+.cmeta <- file.path(release, "_used_contexts_metadata.csv")
+if (!file.exists(.cmeta) && nzchar(Sys.getenv("AD_LOCI_CONFIG")))
+  .cmeta <- file.path(Sys.getenv("AD_LOCI_CONFIG"), "contexts_metadata.csv")
+if (file.exists(.cmeta)) {
+  .cm <- fread(.cmeta)
+  .flag_of <- function(b) fcase(
+    b %in% c("bulk_macrophage_eQTL", "bulk_microglia_eQTL", "bulk_monocyte_eQTL"),
+                            "ct_Bulk_Immune_xQTL",
+    grepl("^Ast_", b),      "ct_Ast_xQTL",
+    grepl("^Exc_", b),      "ct_Exc_xQTL",
+    grepl("^Inh_", b),      "ct_Inh_xQTL",
+    grepl("^Mic_", b),      "ct_Microglia_xQTL",
+    grepl("^Oli_", b),      "ct_Oli_xQTL",
+    grepl("^OPC_", b),      "ct_OPC_xQTL",
+    grepl("^bulk_brain_", b), "ct_Brain_xQTL",
+    default = NA_character_)
+  .cm[, .flag := .flag_of(context_broad)]
+  .cmap <- setNames(.cm$.flag, .cm$context)
+  .cmap <- .cmap[!is.na(.cmap) & !is.na(names(.cmap)) & names(.cmap) != ""]
+  .cx <- fread(tier_file, select = c("variant_ID", "gene_name", "xQTL_contexts"))
+  setnames(.cx, "gene_name", "gene")
+  .cx <- unique(.cx[!is.na(xQTL_contexts) & xQTL_contexts != ""],
+                by = c("variant_ID", "gene"))
+  .cstr <- .cx[out[, .(variant_ID, gene)], on = .(variant_ID, gene), xQTL_contexts]
+  .ctxs <- strsplit(ifelse(is.na(.cstr), "", as.character(.cstr)), "[|;]")
+  .none <- is.na(.cstr)
+  .seen <- setdiff(unique(trimws(unlist(.ctxs))), "")
+  .unknown <- setdiff(.seen, .cm$context)
+  if (length(.unknown))
+    warning("[ct] contexts absent from contexts_metadata, contributing to no flag: ",
+            paste(.unknown, collapse = ", "), call. = FALSE, immediate. = TRUE)
+  .nobucket <- setdiff(intersect(.seen, .cm$context), names(.cmap))
+  if (length(.nobucket))
+    message(sprintf("  (C5) %d contexts have no cell-type flag by design (%s)",
+                    length(.nobucket), paste(utils::head(.nobucket, 6), collapse = ", ")))
+  for (.b in sort(unique(unname(.cmap)))) {
+    .keys <- names(.cmap)[.cmap == .b]
+    .v <- vapply(.ctxs, function(v) any(trimws(v) %in% .keys), logical(1))
+    .v[.none] <- NA
+    set(out, j = .b, value = .v)
+  }
+  message(sprintf("  (C5) cell-type flags from contexts_metadata: %s",
+                  paste(sprintf("%s=%d", sort(unique(unname(.cmap))),
+                                vapply(sort(unique(unname(.cmap))),
+                                       function(k) sum(out[[k]] %in% TRUE), integer(1))),
+                        collapse = " ")))
+} else {
+  warning("[ct] no contexts_metadata found; cell-type flags left as carried",
+          call. = FALSE, immediate. = TRUE)
+}
+
+## (C4) has_trans is the union of the trans count columns, per Q3 of the
+## flagship section-5 notebook:
+##   trans_cols <- c("# trans genes", "# pQTL trans genes", "# gpQTL trans genes",
+##                   "# snRNA trans genes", "# trans cca programs",
+##                   "# trans hotspots programs genes")
+##   has_trans := rowSums(...) > 0
+## Five of those six are app columns, refreshed from the release in (C2). The
+## sixth, the CCA program count, has no app column of its own and is read here
+## rather than added, so the drift check does not see an unreferenced column.
+##
+## Not derived from Method == 'trans_finemapping': that is how gene_prio_utils.R
+## builds it upstream, but the exported table drops the trans rows and keeps
+## only their summaries, so applying it here yields FALSE everywhere.
+##
+## Against the carried column this agrees on 3,789 of 3,821 rows. All 32
+## disagreements run the same way -- carried TRUE where every count is zero --
+## which is the carry-forward staleness, not a second definition. Rows that
+## were previously blank resolve to FALSE, which is what the definition gives.
+.tcc <- intersect(c("trans_n_genes", "trans_pQTL_n_genes", "trans_gpQTL_n_genes",
+                    "trans_snRNA_n_genes", "trans_hotspot_n_genes"), names(out))
+.tot <- rowSums(sapply(.tcc, function(k) suppressWarnings(as.numeric(out[[k]]))),
+                na.rm = TRUE)
+if ("n_trans_cca_programs" %in% .rel_names) {
+  .cca <- fread(tier_file, select = c("variant_ID", "gene_name", "n_trans_cca_programs"))
+  setnames(.cca, "gene_name", "gene")
+  .cca <- .cca[, .(cca_n = suppressWarnings(max(as.numeric(n_trans_cca_programs),
+                                                na.rm = TRUE))),
+               by = .(variant_ID, gene)]
+  .cca[!is.finite(cca_n), cca_n := 0]
+  .j <- .cca[out[, .(variant_ID, gene)], on = .(variant_ID, gene), cca_n]
+  .tot <- .tot + ifelse(is.na(.j), 0, .j)
+} else {
+  warning("[release] no n_trans_cca_programs; has_trans built from ",
+          length(.tcc), " of 6 columns", call. = FALSE, immediate. = TRUE)
+}
+out[, has_trans := .tot > 0]
+message(sprintf("  (C4) has_trans from %d trans count columns: %d TRUE, %d FALSE",
+                length(.tcc) + as.integer("n_trans_cca_programs" %in% .rel_names),
+                sum(out$has_trans), sum(!out$has_trans)))
+
 out[, evidence_gene  := fifelse(is.na(context) & is.na(has_trans), "missing", "202605")]
 ## --- why there is NO T6 backfill here ---------------------------------
 ## An earlier version of this script promoted genes to T6 when twas_sig /
@@ -149,6 +427,8 @@ if (length(.cca)) {
 out[, evidence_tier  := fifelse(is.na(top_confidence), "untiered", tier_src)]
 
 
+source(file.path(here, "trans_rows.R"), local = TRUE)
+
 # ---- report -----------------------------------------------------------------
 prev_genes <- unique(na.omit(prev$gene)); new_genes <- unique(na.omit(out$gene))
 message("\n--- refresh report ---")
@@ -171,6 +451,34 @@ for (.c in intersect(c("ordered_contexts","xQTL_effects"), names(out)))
   out[, (.c) := gsub("\\(CL([0-9])", "(T\\1", get(.c))]
 
 fwrite(out, outfile)
+
+## ---- delivery drift check -------------------------------------------------
+## Every column written here should be one the app actually reads. A column that
+## is delivered but never referenced is invisible to users while still appearing
+## in the released tables - that is how whole loci went missing from the explorer
+## while remaining in the workbook. Warn rather than fail, so a deliberate
+## addition can still ship, but it has to be noticed.
+## The app sources sit beside this script, not beside the output file. Deriving
+## the directory from outfile meant that writing the table anywhere else left
+## .src empty and skipped the check without saying so.
+.app_dir <- here
+.src <- c(list.files(file.path(.app_dir, "modules"), pattern = "[.]R$", full.names = TRUE),
+          list.files(.app_dir, pattern = "^app[.]R$", full.names = TRUE))
+if (!length(.src))
+  warning("[drift] no app sources found under ", .app_dir,
+          " -- delivery drift was NOT checked", call. = FALSE, immediate. = TRUE)
+if (length(.src)) {
+  .code  <- paste(unlist(lapply(.src, readLines, warn = FALSE)), collapse = "\n")
+  .never <- names(out)[!vapply(names(out), function(cc) grepl(cc, .code, fixed = TRUE), logical(1))]
+  ## provenance columns are intentionally not surfaced in the UI
+  .never <- setdiff(.never, c("evidence_locus", "evidence_gene", "evidence_tier"))
+  if (length(.never)) {
+    warning("[drift] delivered but never read by the app: ", paste(.never, collapse = ", "),
+            " -- surface them in the app or stop delivering them.", call. = FALSE, immediate. = TRUE)
+  } else {
+    message("[drift] every delivered column is referenced by the app")
+  }
+}
 
 # ---- build provenance ---------------------------------------------------
 # Written beside the data so the explorer can state on screen exactly which

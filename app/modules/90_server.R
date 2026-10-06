@@ -323,12 +323,13 @@ output$p_trans <- renderPlot({
       Tier = conf_badge(d$top_confidence),
       `#Ctx` = d$n_contexts,
       `xQTL PIP` = round(d$xqtl_max_inclusion, 3),
-      `TWAS z` = round(d$max_twas_z, 2),
+      `TWAS z` = round(d$max_twas_z, 2), `TWAS context` = d$max_twas_ctx,
       TWAS = ev_mark(d$twas_sig),
       MR   = ev_mark(d$mr_sig),
       cTWAS = ev_mark(d$ctwas_sig),
       Trans = ifelse(d$has_trans, paste0('<span style="color:#0b6e4f">\u25cf</span> ', na_fill(d$trans_n_genes, 0)),
                      '<span style="color:#e2e8f0">\u25cb</span>'),
+      `Trans contexts` = na_fill(d$trans_n_contexts, 0),
       `Cell types` = d$ct_dots
     )
   })
@@ -401,11 +402,11 @@ output$p_trans <- renderPlot({
         tags$div(
           tags$p(strong("Variant: "), r$variant_ID, " · ", strong("Effect allele: "), r$effect_allele),
           tags$p(strong("Min p: "), signif(r$min_pval,3), " · ", strong("Significance: "), as.character(r$significance)),
-          tags$p(strong("cV2F: "), round(r$cv2f_score,3), " (rank ", r$cv2f_rank, ") · ",
+          tags$p(strong("cV2F: "), round(r$cv2f_score,3), " (rank ", r$cv2f_rank, ", variant ", r$variant_rank, ") · ",
                  strong("GWAS PIP: "), round(r$max_inclusion,3), " [", pretty_list(r$max_inclusion_method), "]"),
           tags$p(strong("Tier: "), as.character(r$top_confidence), " · ",
                  strong("# contexts: "), r$n_contexts, " · ",
-                 strong("Dist TSS: "), ifelse(is.na(r$dist_tss),"—", paste0(round(r$dist_tss/1000,1)," kb"))),
+                 strong("Dist TSS: "), ifelse(is.na(r$dist_tss),"—", paste0(round(r$dist_tss/1000,1)," kb")), " · ", strong("Dist TES: "), ifelse(is.na(r$dist_tes), "-", paste0(round(r$dist_tes/1000,1)," kb"))),
           tags$p(strong("GWAS: "), pretty_list(r$gwas_assoc)),
           tags$p(strong("Ordered contexts: "), tags$small(pretty_list(ds_relabel(r$ordered_contexts)))),
           ext_links(r$variant_ID, r$rsid),
@@ -758,7 +759,7 @@ observeEvent(input$locus_prev, {
     d <- dat[dat$ADlocus == selected_locus(), ]
     datatable(tibble(Gene = d$gene, rsID = d$rsid, Sig = sig_badge(d$significance),
         Tier = conf_badge(d$top_confidence), `xQTL PIP` = round(d$xqtl_max_inclusion,3),
-        `TWAS z` = round(d$max_twas_z,2), `Cell types` = d$ct_dots,
+        `TWAS z` = round(d$max_twas_z,2), `TWAS context` = d$max_twas_ctx, `Cell types` = d$ct_dots,
         `Ordered contexts` = ds_relabel(d$ordered_contexts)),
       escape = FALSE, rownames = FALSE, options = list(dom = "lrtip", pageLength = 15, scrollX = TRUE, headerCallback = hdr_js, columnDefs = link_defs(0, 1)),
       class = "display compact hover")
@@ -768,11 +769,24 @@ observeEvent(input$locus_prev, {
   trans_d <- reactive({
     d <- dat[na_fill(dat$has_trans, FALSE), ]
     if (length(input$tmod)) {
-      colmap <- c("snRNA"="trans_snRNA_n_genes","pQTL"="trans_pQTL_n_genes",
+      colmap <- c("Trans genes"="trans_n_genes","snRNA"="trans_snRNA_n_genes","pQTL"="trans_pQTL_n_genes",
                   "gpQTL"="trans_gpQTL_n_genes",
                   "Hotspot"="trans_hotspot_n_genes")
       keep <- rep(FALSE, nrow(d))
-      for (m in input$tmod) keep <- keep | na_fill(d[[colmap[[m]]]] > 0, FALSE)
+      for (m in input$tmod) {
+        ## transmap: either source counts. The per-variant column also sees metabolite
+        ## and glycan targets (no gene to draw); the pairs file sees transmap variants
+        ## that are not the variant on an app row. Each alone misses a few loci.
+        if (m == "Transmap") {
+          keep <- keep | d$ADlocus %in% transmap_loci
+          if (!is.null(d$trans_transmap_n_targets))
+            keep <- keep | na_fill(d$trans_transmap_n_targets > 0, FALSE)
+          next
+        }
+        .cc <- colmap[[m]]
+        if (is.null(.cc) || is.null(d[[.cc]])) next
+        keep <- keep | na_fill(d[[.cc]] > 0, FALSE)
+      }
       d <- d[keep, ]
     }
     d
@@ -804,7 +818,7 @@ observeEvent(input$locus_prev, {
     if (is.null(d)) return(NULL)
     cc <- ctx_cols(d$context)
     datatable(tibble(Locus = d$locus, `Source gene` = d$source, rsID = d$rsid,
-                     Modality = d$modality, `Distal target` = d$target,
+                     Modality = d$modality, `Distal target` = d$target, `Credible set` = d$coverage,
                      `Genes in program` = d$n_genes, Tier = d$tier,
                      `Cell type or region` = cc$ctx, Dataset = cc$dset,
                      `Assay context` = cc$mod),
@@ -1056,24 +1070,29 @@ observeEvent(input$locus_prev, {
   .dl_file <- function(path, name) downloadHandler(
     filename = function() name,
     content  = function(f) file.copy(path, f, overwrite = TRUE))
-  output$dlf_browser <- .dl_file("data.csv", "AD_locus_evidence_2026-09.csv")
-  output$dlf_genepos <- .dl_file("gene_positions.csv", "gene_coordinates_GRCh38_2026-09.csv")
-  output$dlf_locsum  <- .dl_file(
-    "downloads/AD_locus_summary_release.csv",
-    "AD_locus_summary_2026-09.csv")
+  output$dlf_browser <- .dl_file("data.csv", "AD_locus_evidence_20261002.csv")
+  output$dlf_genepos <- .dl_file("gene_positions.csv", "gene_coordinates_GRCh38_20261002.csv")
+  ## locus summary is written from the loaded locus table so it always matches this release
+  .locsum_df <- function() { t <- locus_table
+    data.frame(AD_locus = t$ADlocus, region = t$region, chr = t$chr, lead_variant = t$lead, best_tier = t$best,
+               top_gene = t$top_gene, cell_types = t$cells, modalities = t$mods, n_genes = t$n_genes,
+               n_records = t$n_rows, stringsAsFactors = FALSE) }
+  output$dlf_locsum <- downloadHandler(filename = function() "AD_locus_summary_20261002.csv",
+    content = function(f) utils::write.csv(.locsum_df(), f, row.names = FALSE))
   output$dlf_varlvl  <- .dl_file(
     "downloads/AD_locus_variants_release.csv.gz",
-    "AD_locus_variants_2026-09.csv.gz")
+    "AD_locus_variants_20261002.csv.gz")
   output$dlf_tier   <- .dl_file("downloads/gene_tier_assignment_release.csv",
-    "AD_gene_tier_assignment_2026-09.csv")
+    "AD_gene_tier_assignment_20261002.csv")
   output$dlf_xlsx    <- .dl_file(
     "downloads/AD_loci_xQTL_summary_release.xlsx",
-    "AD_locus_xQTL_summary_2026-09.xlsx")
+    "AD_locus_xQTL_summary_20261002.xlsx")
   output$dl_zip <- downloadHandler(
-    filename = function() "AD_loci_explorer_2026-09.zip",
+    filename = function() "AD_loci_explorer_20261002.zip",
     content  = function(f) {
       fs <- c("data.csv", "gene_positions.csv",
               list.files("downloads", full.names = TRUE))
+      .ls <- file.path(tempdir(), "AD_locus_summary_release.csv"); utils::write.csv(.locsum_df(), .ls, row.names = FALSE); fs <- c(fs, .ls)
       fs <- fs[file.exists(fs)]
       if (requireNamespace("zip", quietly = TRUE)) zip::zipr(f, fs)
       else utils::zip(f, fs, flags = "-j9X")
@@ -1122,6 +1141,8 @@ observeEvent(input$locus_prev, {
     if (!is.null(input$lt_mod) && length(input$lt_mod))
       t <- t[vapply(strsplit(t$mods, ","), function(v)
                any(input$lt_mod %in% trimws(v)), logical(1)), , drop = FALSE]
+      if (!is.null(input$lt_cis) && length(input$lt_cis) && !is.null(t$evidence))
+        t <- t[t$evidence %in% input$lt_cis, , drop = FALSE]
     h <- lt_hits()
     if (!is.null(h)) t <- t[t$ADlocus %in% h, , drop = FALSE]
     t
@@ -1171,6 +1192,11 @@ observeEvent(input$locus_prev, {
       Records = t$n_rows,
       "Evidence by tier" = vapply(seq_len(nrow(t)), function(i) lt_bar(t[i, ]), character(1)),
       check.names = FALSE, stringsAsFactors = FALSE)
+      ## flag a top gene that is linked to the locus in trans, not cis
+      if (!is.null(t$top_evidence)) {
+        .tz <- !is.na(t$top_evidence) & t$top_evidence == "trans"
+        d[["Top gene"]][.tz] <- paste0(d[["Top gene"]][.tz], " <span class=\"tchip\" style=\"background:#6b7280;color:#fff\" title=\"This gene sits elsewhere in the genome; its link to the locus is trans\">trans</span>")
+      }
     datatable(d, escape = FALSE, rownames = FALSE, selection = "single",
       options = list(pageLength = 15, dom = "tip", autoWidth = FALSE,
         columnDefs = list(list(className = "dt-right", targets = c(6, 7)),
@@ -1185,7 +1211,7 @@ observeEvent(input$locus_prev, {
   })
 
   output$dl_loci_csv <- downloadHandler(
-    filename = function() "AD_loci_overview_2026-09.csv",
+    filename = function() "AD_loci_overview_20261002.csv",
     content  = function(f) {
       t <- loci_view()
       o <- data.frame(ADlocus = t$ADlocus, region = t$region, lead_variant = t$lead,
@@ -1228,7 +1254,7 @@ observeEvent(input$locus_prev, {
   })
 
   output$dl_figB_csv <- downloadHandler(
-    filename = function() "cell_type_by_tier_2026-09.csv",
+    filename = function() "cell_type_by_tier_20261002.csv",
     content  = function(f) {
       m <- ctx_tier_counts
       o <- data.frame(cell_type = rownames(m), m, total = rowSums(m),
@@ -1625,11 +1651,18 @@ output$gp_matrix <- renderUI({
   output$sum_mod <- renderUI(.bars(mod_counts))
 
   output$sum_trans <- renderUI({
-    d <- trans_all
+    ## distal targets: the selected trans fine-mapping set (stored as eQTL) plus transmap pairs
+    d <- if (!is.null(trans_all) && nrow(trans_all)) trans_all[, c("locus", "target", "modality")] else NULL
+    if (!is.null(d)) d$modality[d$modality == "eQTL"] <- "Trans genes"
+    if (file.exists("transmap_pairs.csv")) {
+      .tm <- read.csv("transmap_pairs.csv", stringsAsFactors = FALSE)
+      if (nrow(.tm)) d <- rbind(d, data.frame(locus = .tm$ADlocus, target = .tm$gene, modality = "Transmap", stringsAsFactors = FALSE))
+    }
+    if (!is.null(d)) d <- d[!is.na(d$target) & nzchar(d$target), , drop = FALSE]
     if (is.null(d) || !nrow(d))
       return(div(class = "dc-note", "No trans pairs recorded in this release."))
-    mods <- c("snRNA", "pQTL", "gpQTL", "Hotspot")
-    cols <- c(snRNA = "#2a78d6", pQTL = "#da532c",
+    mods <- intersect(c("Trans genes", "Transmap", "snRNA", "pQTL", "gpQTL", "Hotspot"), unique(d$modality))
+    cols <- c(`Trans genes` = "#7b52ab", Transmap = "#8b1e3f", snRNA = "#2a78d6", pQTL = "#da532c",
               gpQTL = "#17868f", Hotspot = "#a8791b")
     tot <- sort(vapply(split(d$target, d$locus), function(z) length(unique(z)), integer(1)), decreasing = TRUE)
     top <- names(tot)[seq_len(min(12, length(tot)))]
@@ -1901,7 +1934,7 @@ output$gp_matrix <- renderUI({
   }
 
   # ---- P2.14 / P2.15 provenance ------------------------------------------
-  .rel_lab  <- if (exists("RELEASE_LABEL")) as.character(RELEASE_LABEL) else "2026-09"
+  .rel_lab  <- if (exists("RELEASE_LABEL")) as.character(RELEASE_LABEL) else "2026-10-02"
   .bld_lab  <- if (exists("BUILD_LABEL")) as.character(BUILD_LABEL) else "GRCh38"
   .cite_txt <- "The Alzheimer Disease Functional Genomics (FunGen-AD) Consortium. Broad and deep dissection of Alzheimer disease genetics with FunGen-xQTL."
   .cur_q <- function() {

@@ -6,7 +6,7 @@
 # gene region list); the data files do not carry a build column.
 GENOME_BUILD <- "GRCh38"
 # Stated, not derived: no data file carries a release or build column.
-DATA_RELEASE <- "2026-09"
+DATA_RELEASE <- "2026-10-02"
 
 .chr_norm <- function(v) paste0("chr", sub("^chr", "", as.character(v)))
 
@@ -203,17 +203,23 @@ gene_pos <- local({
 
 trans_pairs <- local({
   if (is.null(gene_pos)) return(NULL)
-  d <- dat[!is.na(dat$trans_genes) & nzchar(trimws(as.character(dat$trans_genes))) &
-           !is.na(dat$gene) & dat$gene != "" & !is.na(dat$pos), , drop = FALSE]
+  ## Every trans set is read, not just the per-assay ones. The five lists are
+  ## largely disjoint, so the main trans_genes column carries links the others
+  ## never do. Hotspot stays out: its entries are program names rather than
+  ## genes, so they have no position on the genome to draw an arc to.
+  .tc  <- intersect(c("trans_genes", "trans_snRNA_genes", "trans_pQTL_genes",
+                      "trans_gpQTL_genes"), names(dat))
+  .has <- Reduce(`|`, lapply(.tc, function(k)
+            !is.na(dat[[k]]) & nzchar(trimws(as.character(dat[[k]])))))
+  ## An arc starts at the variant position, so a cis gene was only ever the
+  ## label for its start. Rows without one are labelled by the locus instead.
+  d <- dat[.has & !is.na(dat$pos), , drop = FALSE]
   if (!nrow(d)) return(NULL)
   mods <- c(snRNA = "trans_snRNA_n_genes", pQTL = "trans_pQTL_n_genes",
             gpQTL = "trans_gpQTL_n_genes", Hotspot = "trans_hotspot_n_genes")
   out <- do.call(rbind, lapply(seq_len(nrow(d)), function(i) {
-    tg <- unique(trimws(unlist(strsplit(as.character(d$trans_genes[i]), "[;,|]"))))
-    tg <- tg[nzchar(tg)]
-    if (!length(tg)) return(NULL)
-    gsets <- list(snRNA = "trans_snRNA_genes", pQTL = "trans_pQTL_genes",
-                  gpQTL = "trans_gpQTL_genes")
+    gsets <- list(`Trans genes` = "trans_genes", snRNA = "trans_snRNA_genes",
+                  pQTL = "trans_pQTL_genes", gpQTL = "trans_gpQTL_genes")
     mm <- character(0); gg <- character(0)
     for (mname in names(gsets)) {
       cc <- gsets[[mname]]
@@ -228,7 +234,7 @@ trans_pairs <- local({
     if (!length(gg)) return(NULL)
     tg <- gg
     data.frame(ADlocus = as.character(d$ADlocus[i]),
-               src = as.character(d$gene[i]),
+                   src = if (is.na(d$gene[i]) || d$gene[i] == "") as.character(d$ADlocus[i]) else as.character(d$gene[i]),
                src_chr = sub("^chr", "", as.character(d$chr[i])),
                src_pos = as.numeric(d$pos[i]),
                tgt = tg,
@@ -237,6 +243,24 @@ trans_pairs <- local({
   }))
   if (is.null(out) || !nrow(out)) return(NULL)
   out <- unique(out)
+  ## transmap pairs, written by build_shiny_data.R from the release. Same
+  ## shape as the rows above. Transmap has no cis gene, so the source is
+  ## labelled by the locus; the arc still starts at the variant position.
+  .tmf <- "transmap_pairs.csv"
+  if (file.exists(.tmf)) {
+    .tm <- read.csv(.tmf, stringsAsFactors = FALSE)
+    if (nrow(.tm)) {
+      .vc  <- strsplit(as.character(.tm$variant_ID), ":", fixed = TRUE)
+      .tmo <- data.frame(ADlocus  = as.character(.tm$ADlocus),
+                         src      = as.character(.tm$ADlocus),
+                         src_chr  = sub("^chr", "", vapply(.vc, `[`, "", 1)),
+                         src_pos  = as.numeric(vapply(.vc, `[`, "", 2)),
+                         tgt      = as.character(.tm$gene),
+                         modality = "Transmap",
+                         stringsAsFactors = FALSE)
+      out <- rbind(out, .tmo[, names(out)])
+    }
+  }
   i <- match(out$tgt, gene_pos$gene)
   out$tgt_chr <- gene_pos$chr[i]
   out$tgt_pos <- (as.numeric(gene_pos$start[i]) + as.numeric(gene_pos$end[i])) / 2
@@ -245,12 +269,19 @@ trans_pairs <- local({
   out$x <- out$src_pos + chr_offsets$off[match(out$src_chr, chr_offsets$chr)]
   out$y <- out$tgt_pos + chr_offsets$off[match(out$tgt_chr, chr_offsets$chr)]
   out$modality <- factor(out$modality,
-                         levels = intersect(c("snRNA", "pQTL", "gpQTL", "Hotspot"),
+                         levels = intersect(c("Trans genes", "snRNA", "pQTL", "gpQTL", "Hotspot", "Transmap"),
                                             unique(out$modality)))
   out
 })
 
-MOD_COL <- c(snRNA = "#2a78d6", pQTL = "#1baf7a", gpQTL = "#eda100",
+## loci with at least one placeable transmap target; used by the Trans tab
+## table filter, since transmap has no count column in data.csv yet
+transmap_loci <- local({
+  f <- "transmap_pairs.csv"
+  if (file.exists(f)) unique(as.character(read.csv(f, stringsAsFactors = FALSE)$ADlocus)) else character(0)
+})
+
+MOD_COL <- c(snRNA = "#2a78d6", pQTL = "#1baf7a", gpQTL = "#eda100", tpQTL = "#9c9a9c",
              Hotspot = "#da532c", unspecified = "#898781")
 
 trans_map_plot <- function(d, note_empty = "No trans pairs with mapped coordinates.") {
@@ -397,6 +428,12 @@ locus_table <- local({
                    -ifelse(is.na(gu$log10pval), -Inf, gu$log10pval))
       top <- as.character(gu$gene[ord[1]])
     }
+      ## Evidence behind the genes named at this locus. Judged on the genes,
+      ## not the rows, so a locus whose only named genes come from trans
+      ## reads "trans only".
+      .gv <- if (!nrow(gu) || is.null(gu$cis_trans)) character(0) else unique(as.character(gu$cis_trans))
+      ev  <- if (!length(.gv)) "no gene" else if (all(.gv == "trans")) "trans only" else if (all(.gv == "cis")) "cis only" else "cis + trans"
+      tev <- if (!nrow(gu) || is.null(gu$cis_trans)) NA_character_ else as.character(gu$cis_trans[ord[1]])
     cts <- if (is.null(e)) character(0) else intersect(CTX_ORD, unique(e$ctx))
     mds <- if (is.null(e)) character(0) else intersect(MOD_ORD, unique(e$mod))
     tc  <- vapply(TIER_SEQ, function(tt) sum(tv == tt, na.rm = TRUE), integer(1))
@@ -411,6 +448,8 @@ locus_table <- local({
       mods    = paste(mds, collapse = ", "),
       n_genes = nrow(gu),
       n_rows  = nrow(d),
+        evidence     = ev,
+        top_evidence = tev,
       t1 = tc[[1]], t2 = tc[[2]], t3 = tc[[3]],
       t4 = tc[[4]], t5 = tc[[5]], t6 = tc[[6]],
       stringsAsFactors = FALSE)

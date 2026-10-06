@@ -32,12 +32,12 @@ vf <- file.path(release, "res_AD_variants_xQTL.csv.gz")
 if (file.exists(vf)) {
   v <- fread(vf, select = c("locus_index", "gene_name", "top_confidence"))
   n_loci <- uniqueN(v[!is.na(locus_index)]$locus_index)
-  note(n_loci == 188, sprintf("locus count is 188 (found %d)", n_loci))
+  note(n_loci == 195, sprintf("locus count is 195 (found %d)", n_loci))
 
   t <- v[!is.na(top_confidence) & top_confidence != "" &
          !is.na(gene_name) & gene_name != ""]
   g <- t[, .(tier = min(top_confidence)), by = .(gene = gene_name)]
-  note(nrow(g) == 508, sprintf("tiered genes is 508 (found %d)", nrow(g)))
+  note(nrow(g) == 494, sprintf("tiered genes is 494 (found %d)", nrow(g)))
 
   tb <- table(g$tier)
   cat("\n  tier distribution:", paste(sprintf("%s=%d", names(tb), tb), collapse = " "), "\n")

@@ -27,14 +27,21 @@ mkdir -p "$AD_LOCI_ROOT/logs" "$OUT"
 cd "$REPO" || exit 1
 
 ## provenance: snapshot the exact config this build used
-cp config/metadata_analysis.csv "$OUT/_used_metadata_analysis.csv"
-cp config/contexts_metadata.csv "$OUT/_used_contexts_metadata.csv"
+## build_AD_locus_table.R reads AD_LOCI_CONFIG and only falls back to config/.
+## Snapshotting config/ unconditionally recorded a file the build never opened
+## whenever AD_LOCI_CONFIG was set, which is how a config change could take
+## effect while the provenance said otherwise.
+CFG=${AD_LOCI_CONFIG:-config}
+echo "config dir: $CFG"
+cp "$CFG/metadata_analysis.csv" "$OUT/_used_metadata_analysis.csv"
+cp "$CFG/contexts_metadata.csv" "$OUT/_used_contexts_metadata.csv"
 { echo "built_at,$(date -Iseconds)"
   echo "built_by,$USER"
   echo "host,$(hostname)"
   echo "repo_commit,$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)"
   echo "out,$OUT"
-  echo "metadata_rows,$(tail -n +2 config/metadata_analysis.csv | wc -l)"
+  echo "metadata_rows,$(tail -n +2 "$CFG/metadata_analysis.csv" | wc -l)"
+  echo "config_dir,$CFG"
 } > "$OUT/_provenance.csv"
 
 ## out/ is intentionally left empty so the GWAS credible-set harmonisation

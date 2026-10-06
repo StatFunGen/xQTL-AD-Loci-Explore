@@ -17,24 +17,34 @@ CT_CHOICES <- stats::setNames(names(CT_COLS), unname(CT_COLS))
 # cell type, dataset and modality cannot be read off token position. This
 # table is exhaustive over the distinct context values in the release.
 # Each entry is c(label, dataset, modality, cell-type bucket).
+# ---- dataset naming -------------------------------------------------------
+# The keys below must match the context strings the release emits, which use
+# DeJager and Kellis. The dataset label in each entry stays CUIMC1 and MIT,
+# which is what these datasets are called in the app. Key and label are not
+# the same thing: the key is a join, the label is display. Renaming a key to
+# match a preferred label silently orphans every row it should have matched.
 CTX_MAP <- list(
-  "AC_CUIMC1_eQTL" = c("Anterior cingulate", "CUIMC1", "eQTL", "ct_Brain_xQTL"),
-  "Ast_CUIMC1_eQTL" = c("Astrocyte", "CUIMC1", "eQTL", "ct_Ast_xQTL"),
-  "Ast_MIT_eQTL" = c("Astrocyte", "MIT", "eQTL", "ct_Ast_xQTL"),
+  "AC_DeJager_eQTL" = c("Anterior cingulate", "CUIMC1", "eQTL", "ct_Brain_xQTL"),
+  "Ast_DeJager_eQTL" = c("Astrocyte", "CUIMC1", "eQTL", "ct_Ast_xQTL"),
+  "Ast_Kellis_eQTL" = c("Astrocyte", "MIT", "eQTL", "ct_Ast_xQTL"),
   "Ast_mega_eQTL" = c("Astrocyte", "mega", "eQTL", "ct_Ast_xQTL"),
   "BM_10_MSBB_eQTL" = c("BM 10", "MSBB", "eQTL", "ct_Brain_xQTL"),
   "BM_22_MSBB_eQTL" = c("BM 22", "MSBB", "eQTL", "ct_Brain_xQTL"),
   "BM_36_MSBB_eQTL" = c("BM 36", "MSBB", "eQTL", "ct_Brain_xQTL"),
   "BM_44_MSBB_eQTL" = c("BM 44", "MSBB", "eQTL", "ct_Brain_xQTL"),
   "DLPFC_Bennett_pQTL" = c("DLPFC", "Bennett", "pQTL", "ct_Brain_xQTL"),
-  "DLPFC_CUIMC1_eQTL" = c("DLPFC", "CUIMC1", "eQTL", "ct_Brain_xQTL"),
+  "DLPFC_DeJager_eQTL" = c("DLPFC", "CUIMC1", "eQTL", "ct_Brain_xQTL"),
   "DLPFC_Klein_gpQTL_adjusted" = c("DLPFC", "Klein", "gpQTL", "ct_Brain_xQTL"),
   "DLPFC_Klein_gpQTL_unadjusted" = c("DLPFC", "Klein", "gpQTL", "ct_Brain_xQTL"),
-  "Exc_CUIMC1_eQTL" = c("Excitatory", "CUIMC1", "eQTL", "ct_Exc_xQTL"),
-  "Exc_MIT_eQTL" = c("Excitatory", "MIT", "eQTL", "ct_Exc_xQTL"),
+  ## transMap colocalization contexts; tissue is not recorded in the release metadata
+  "protein_transmap" = c("transMap", "", "pQTL", "ct_Brain_xQTL"),
+  "adjusted_glyco_transmap" = c("transMap", "", "gpQTL", "ct_Brain_xQTL"),
+  "metabolomics_transmap" = c("transMap", "", "metQTL", "ct_Brain_xQTL"),
+  "Exc_DeJager_eQTL" = c("Excitatory", "CUIMC1", "eQTL", "ct_Exc_xQTL"),
+  "Exc_Kellis_eQTL" = c("Excitatory", "MIT", "eQTL", "ct_Exc_xQTL"),
   "Exc_mega_eQTL" = c("Excitatory", "mega", "eQTL", "ct_Exc_xQTL"),
-  "Inh_CUIMC1_eQTL" = c("Inhibitory", "CUIMC1", "eQTL", "ct_Inh_xQTL"),
-  "Inh_MIT_eQTL" = c("Inhibitory", "MIT", "eQTL", "ct_Inh_xQTL"),
+  "Inh_DeJager_eQTL" = c("Inhibitory", "CUIMC1", "eQTL", "ct_Inh_xQTL"),
+  "Inh_Kellis_eQTL" = c("Inhibitory", "MIT", "eQTL", "ct_Inh_xQTL"),
   "Inh_mega_eQTL" = c("Inhibitory", "mega", "eQTL", "ct_Inh_xQTL"),
   "KnightADRC_mQTL" = c("Brain", "KnightADRC", "mQTL", "ct_Brain_xQTL"),
   "Knight_eQTL_brain" = c("Brain", "Knight", "eQTL", "ct_Brain_xQTL"),
@@ -48,16 +58,16 @@ CTX_MAP <- list(
   "MiGA_GTS_eQTL" = c("GTS", "MiGA", "eQTL", "ct_Brain_xQTL"),
   "MiGA_SVZ_eQTL" = c("SVZ", "MiGA", "eQTL", "ct_Brain_xQTL"),
   "MiGA_THA_eQTL" = c("THA", "MiGA", "eQTL", "ct_Brain_xQTL"),
-  "Mic_CUIMC1_eQTL" = c("Microglia", "CUIMC1", "eQTL", "ct_Microglia_xQTL"),
-  "Mic_MIT_eQTL" = c("Microglia", "MIT", "eQTL", "ct_Microglia_xQTL"),
+  "Mic_DeJager_eQTL" = c("Microglia", "CUIMC1", "eQTL", "ct_Microglia_xQTL"),
+  "Mic_Kellis_eQTL" = c("Microglia", "MIT", "eQTL", "ct_Microglia_xQTL"),
   "Mic_mega_eQTL" = c("Microglia", "mega", "eQTL", "ct_Microglia_xQTL"),
-  "OPC_CUIMC1_eQTL" = c("OPC", "CUIMC1", "eQTL", "ct_OPC_xQTL"),
-  "OPC_MIT_eQTL" = c("OPC", "MIT", "eQTL", "ct_OPC_xQTL"),
+  "OPC_DeJager_eQTL" = c("OPC", "CUIMC1", "eQTL", "ct_OPC_xQTL"),
+  "OPC_Kellis_eQTL" = c("OPC", "MIT", "eQTL", "ct_OPC_xQTL"),
   "OPC_mega_eQTL" = c("OPC", "mega", "eQTL", "ct_OPC_xQTL"),
-  "Oli_CUIMC1_eQTL" = c("Oligodendrocyte", "CUIMC1", "eQTL", "ct_Oli_xQTL"),
-  "Oli_MIT_eQTL" = c("Oligodendrocyte", "MIT", "eQTL", "ct_Oli_xQTL"),
+  "Oli_DeJager_eQTL" = c("Oligodendrocyte", "CUIMC1", "eQTL", "ct_Oli_xQTL"),
+  "Oli_Kellis_eQTL" = c("Oligodendrocyte", "MIT", "eQTL", "ct_Oli_xQTL"),
   "Oli_mega_eQTL" = c("Oligodendrocyte", "mega", "eQTL", "ct_Oli_xQTL"),
-  "PCC_CUIMC1_eQTL" = c("PCC", "CUIMC1", "eQTL", "ct_Brain_xQTL"),
+  "PCC_DeJager_eQTL" = c("PCC", "CUIMC1", "eQTL", "ct_Brain_xQTL"),
   "ROSMAP_AC_p_sQTL" = c("Anterior cingulate", "ROSMAP", "sQTL", "ct_Brain_xQTL"),
   "ROSMAP_AC_sQTL" = c("Anterior cingulate", "ROSMAP", "sQTL", "ct_Brain_xQTL"),
   "ROSMAP_AC_u_sQTL" = c("Anterior cingulate", "ROSMAP", "sQTL", "ct_Brain_xQTL"),
@@ -70,7 +80,24 @@ CTX_MAP <- list(
   "ROSMAP_PCC_sQTL" = c("PCC", "ROSMAP", "sQTL", "ct_Brain_xQTL"),
   "ROSMAP_PCC_u_sQTL" = c("PCC", "ROSMAP", "sQTL", "ct_Brain_xQTL"),
   "STARNET_eQTL_Mac" = c("Macrophage", "STARNET", "eQTL", "ct_Bulk_Immune_xQTL"),
-  "monocyte_ROSMAP_eQTL" = c("Monocyte", "ROSMAP", "eQTL", "ct_Bulk_Immune_xQTL")
+  "monocyte_ROSMAP_eQTL" = c("Monocyte", "ROSMAP", "eQTL", "ct_Bulk_Immune_xQTL"),
+  ## transcriptomic pattern QTL (tpQTL), ROSMAP Torino factorisation. The
+  ## context strings keep the sQTL_factor spelling because that is what the
+  ## data carries; only the display modality and grouping say tpQTL.
+  "ROSMAP_AC_sQTL_factor"    = c("AC",    "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
+  "ROSMAP_DLPFC_sQTL_factor" = c("DLPFC", "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
+  "ROSMAP_PCC_sQTL_factor"   = c("PCC",   "ROSMAP", "tpQTL", "ct_Brain_xQTL"),
+  ## Labels and groupings taken from contexts_metadata.csv rather than guessed:
+  ##   Metabrain_Basalganglia  context_short "bulk eQTL", context_broad bulk_brain_eQTL
+  ##   Mic_12_Kellis_eQTL      context_short "Mic eQTL",  context_broad Mic_eQTL
+  "Metabrain_Basalganglia" = c("Basal ganglia", "MetaBrain", "eQTL", "ct_Brain_xQTL"),
+  "Mic_12_Kellis_eQTL"     = c("Microglia",     "MIT",       "eQTL", "ct_Microglia_xQTL"),
+  ## contexts_metadata.csv gives this its own broad group, End_eQTL, but CT_COLS
+  ## has no endothelial flag. Bucketed with bulk brain by choice, so the context
+  ## at least renders; it is a cell type filed under a tissue-level flag, which
+  ## matters only once the ct_* flags are derived rather than carried.
+  "End_DeJager_eQTL" = c("Endothelial", "CUIMC1", "eQTL", "ct_Brain_xQTL")
+
 )
 
 .ctx_bucket <- vapply(as.character(dat$context), function(v) {
@@ -87,7 +114,11 @@ ct_rows <- function(col) {
 
 # ---- trans pairs, one row per source-target ----
 .mk_trans_tbl <- function() {
-  mods <- c(snRNA = "trans_snRNA", pQTL = "trans_pQTL",
+  ## The generic trans_genes/trans_contexts pair is a distinct evidence set, not a
+## union of the others. It is drawn from a cs50-or-greater export while the four
+## below are cs95 throughout, so each row carries its credible-set coverage.
+  mods <- c(eQTL  = "trans",
+            snRNA = "trans_snRNA", pQTL = "trans_pQTL",
             gpQTL = "trans_gpQTL", Hotspot = "trans_hotspot")
   res <- list()
   for (m in names(mods)) {
@@ -99,11 +130,20 @@ ct_rows <- function(col) {
     keep <- !is.na(dat[[tc]]) & nzchar(dat[[tc]])
     if (!any(keep)) next
     d   <- dat[keep, , drop = FALSE]
-    lst <- strsplit(d[[tc]], "\\s*,\\s*")
+    lst <- strsplit(d[[tc]], "\\s*[,|]\\s*")
+    n   <- lengths(lst)
+    ## coverage: per association for the generic set, cs95 by construction otherwise
+    .cv <- rep(if (m == "eQTL") "" else "cs95", sum(n))
+    if (m == "eQTL" && "trans_coverage" %in% names(d)) {
+      .cl <- strsplit(as.character(d$trans_coverage), "\\s*[,|]\\s*")
+      if (identical(lengths(.cl), n)) .cv <- trimws(unlist(.cl))
+    }
     n   <- lengths(lst)
     res[[m]] <- data.frame(
       locus    = rep(d$ADlocus, n),
-      source   = rep(d$gene, n),
+      source   = rep(ifelse(!is.na(d$gene) & nzchar(trimws(as.character(d$gene))),
+                            as.character(d$gene), NO_GENE), n),
+      coverage = .cv,
       rsid     = rep(d$rsid, n),
       target   = trimws(unlist(lst)),
       modality = m,
