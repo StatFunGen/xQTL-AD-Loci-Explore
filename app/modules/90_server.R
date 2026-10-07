@@ -1873,24 +1873,26 @@ output$gp_matrix <- renderUI({
         .cnt(round(100 * cv / n), "% carry a cV2F score"))
   })
 
-  output$ql_pip <- renderPlot({
+  .fig_ql_pip <- function() {
     v <- dat$max_inclusion[!is.na(dat$max_inclusion)]
     ggplot(data.frame(v = v), aes(x = v)) +
       geom_histogram(bins = 26, fill = "#2a78d6", colour = "#ffffff", linewidth = 0.4) +
       scale_x_continuous(limits = c(0, 1), breaks = c(0, 0.25, 0.5, 0.75, 1)) +
       labs(x = "Highest inclusion probability", y = NULL) +
       .ql_theme()
-  }, res = 96)
+  }
+  output$ql_pip <- renderPlot(.fig_ql_pip(), res = 96)
 
-  output$ql_cv2f <- renderPlot({
+  .fig_ql_cv2f <- function() {
     v <- dat$cv2f_score[!is.na(dat$cv2f_score)]
     ggplot(data.frame(v = v), aes(x = v)) +
       geom_histogram(bins = 26, fill = "#17868f", colour = "#ffffff", linewidth = 0.4) +
       labs(x = "cV2F score", y = NULL) +
       .ql_theme()
-  }, res = 96)
+  }
+  output$ql_cv2f <- renderPlot(.fig_ql_cv2f(), res = 96)
 
-  output$ql_sig <- renderPlot({
+  .fig_ql_sig <- function() {
     nice <- c(`genome wide` = "Genome-wide", suggestive = "Suggestive",
               ns = "Not significant", `no p-value` = "No GWAS p-value")
     v <- as.character(dat$significance)
@@ -1911,8 +1913,61 @@ output$gp_matrix <- renderUI({
       .ql_theme() +
       theme(axis.text.y = element_blank(),
             axis.text.x = element_text(size = 8.5, lineheight = 0.95))
-  }, res = 96)
+  }
+  output$ql_sig <- renderPlot(.fig_ql_sig(), res = 96)
 
+
+
+  # ---- figure exports for the quality panels, tier bars and trans bars ----
+  .png_only <- function(fn, fig, w, h) downloadHandler(
+    filename = function() paste0(fn, ".png"),
+    content  = function(f) ggplot2::ggsave(f, fig(), width = w, height = h,
+                                           dpi = 220, device = "png", bg = "white"))
+  .rec_cols <- function(col) {
+    d <- dat[!is.na(dat[[col]]), c("ADlocus", "gene", "rsid", col), drop = FALSE]
+    names(d)[1] <- "AD_locus"; d
+  }
+  .tier_counts <- function(d) {
+    if (is.null(d) || !nrow(d)) return(data.frame(tier = character(0), gene_records = integer(0)))
+    tb <- as.data.frame(table(factor(as.character(d$top_confidence), levels = .lv)), stringsAsFactors = FALSE)
+    names(tb) <- c("tier", "gene_records"); tb
+  }
+  output$dl_ql_pip_png  <- .png_only("fine_mapping_confidence", .fig_ql_pip, 6, 3.2)
+  output$dl_ql_pip_csv  <- downloadHandler(filename = function() "fine_mapping_confidence.csv",
+    content = function(f) .prov_csv(.rec_cols("max_inclusion"), f, "highest PIP per gene record"))
+  output$dl_ql_cv2f_png <- .png_only("variant_to_function_score", .fig_ql_cv2f, 6, 3.2)
+  output$dl_ql_cv2f_csv <- downloadHandler(filename = function() "variant_to_function_score.csv",
+    content = function(f) .prov_csv(.rec_cols("cv2f_score"), f, "cV2F score per gene record"))
+  output$dl_ql_sig_png  <- .png_only("GWAS_support", .fig_ql_sig, 6, 3.2)
+  output$dl_ql_sig_csv  <- downloadHandler(filename = function() "GWAS_support.csv",
+    content = function(f) {
+      v <- as.character(dat$significance); v[is.na(v) | !nzchar(v)] <- "no p-value"
+      tb <- as.data.frame(table(v), stringsAsFactors = FALSE); names(tb) <- c("GWAS_significance", "gene_records")
+      .prov_csv(tb, f, "gene records by GWAS significance")
+    })
+  output$dl_cty_tier_png <- .png_only("cell_type_evidence_tiers", function() .tier_bar(cty_d()), 6, 3.4)
+  output$dl_cty_tier_csv <- downloadHandler(filename = function() "cell_type_evidence_tiers.csv",
+    content = function(f) .prov_csv(.tier_counts(cty_d()), f, paste("evidence tiers in", input$cty_ct)))
+  output$dl_bt_tier_png  <- .png_only("batch_evidence_tiers", function() .tier_bar(bt_r()), 6, 3.4)
+  output$dl_bt_tier_csv  <- downloadHandler(filename = function() "batch_evidence_tiers.csv",
+    content = function(f) .prov_csv(.tier_counts(bt_r()), f, "evidence tiers across matched entries"))
+  output$dl_sum_trans_csv <- downloadHandler(filename = function() "AD_loci_trans_target_genes.csv",
+    content = function(f) {
+      d <- if (!is.null(trans_all) && nrow(trans_all)) trans_all[, c("locus", "target", "modality")] else NULL
+      if (!is.null(d)) d$modality[d$modality == "eQTL"] <- "Trans genes"
+      if (file.exists("transmap_pairs.csv")) {
+        .tm <- read.csv("transmap_pairs.csv", stringsAsFactors = FALSE)
+        if (nrow(.tm)) d <- rbind(d, data.frame(locus = .tm$ADlocus, target = .tm$gene, modality = "Transmap", stringsAsFactors = FALSE))
+      }
+      if (!is.null(d)) d <- d[!is.na(d$target) & nzchar(d$target), , drop = FALSE]
+      if (is.null(d) || !nrow(d)) { .prov_csv(data.frame(), f, "trans target genes per AD locus"); return(invisible()) }
+      locs <- unique(d$locus); mods <- unique(d$modality)
+      out <- data.frame(AD_locus = locs, stringsAsFactors = FALSE)
+      out$trans_target_genes <- vapply(locs, function(l) length(unique(d$target[d$locus == l])), 0L)
+      for (m in mods) out[[m]] <- vapply(locs, function(l) length(unique(d$target[d$locus == l & d$modality == m])), 0L)
+      out <- out[order(-out$trans_target_genes), , drop = FALSE]
+      .prov_csv(out, f, "distinct trans target genes per AD locus, by type of trans evidence")
+    })
 
   # ---- what is currently filtering each tab ----------------------------
   .chips <- function(items, clear_id) {
