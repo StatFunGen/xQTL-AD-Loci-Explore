@@ -217,30 +217,30 @@ trans_pairs <- local({
   if (!nrow(d)) return(NULL)
   mods <- c(snRNA = "trans_snRNA_n_genes", pQTL = "trans_pQTL_n_genes",
             gpQTL = "trans_gpQTL_n_genes", Hotspot = "trans_hotspot_n_genes")
-  out <- do.call(rbind, lapply(seq_len(nrow(d)), function(i) {
-    gsets <- list(`Trans genes` = "trans_genes", snRNA = "trans_snRNA_genes",
-                  pQTL = "trans_pQTL_genes", gpQTL = "trans_gpQTL_genes")
-    mm <- character(0); gg <- character(0)
-    for (mname in names(gsets)) {
-      cc <- gsets[[mname]]
-      if (!cc %in% names(d)) next
-      vv <- as.character(d[[cc]][i])
-      if (is.na(vv) || !nzchar(vv)) next
-      g2 <- unique(trimws(unlist(strsplit(vv, "[;,|]"))))
-      g2 <- g2[nzchar(g2)]
-      if (!length(g2)) next
-      gg <- c(gg, g2); mm <- c(mm, rep(mname, length(g2)))
-    }
-    if (!length(gg)) return(NULL)
-    tg <- gg
-    data.frame(ADlocus = as.character(d$ADlocus[i]),
-                   src = if (is.na(d$gene[i]) || d$gene[i] == "") as.character(d$ADlocus[i]) else as.character(d$gene[i]),
-               src_chr = sub("^chr", "", as.character(d$chr[i])),
-               src_pos = as.numeric(d$pos[i]),
-               tgt = tg,
-               modality = mm,
-               stringsAsFactors = FALSE)
-  }))
+  gsets <- c(`Trans genes` = "trans_genes", snRNA = "trans_snRNA_genes",
+             pQTL = "trans_pQTL_genes", gpQTL = "trans_gpQTL_genes")
+  gsets <- gsets[gsets %in% names(d)]
+  parts <- lapply(seq_along(gsets), function(j) {
+    vv <- as.character(d[[gsets[[j]]]]); vv[is.na(vv)] <- ""
+    sp <- strsplit(vv, "[;,|]")
+    ri <- rep(seq_along(sp), lengths(sp))
+    g2 <- trimws(unlist(sp, use.names = FALSE))
+    po <- seq_along(g2)
+    k  <- !duplicated(data.frame(ri, g2)) & nzchar(g2)
+    data.frame(ri = ri[k], j = rep(j, sum(k)), po = po[k], tgt = g2[k],
+               mod = rep(names(gsets)[j], sum(k)), stringsAsFactors = FALSE)
+  })
+  L <- do.call(rbind, parts)
+  out <- NULL
+  if (!is.null(L) && nrow(L)) {
+    L <- L[order(L$ri, L$j, L$po), , drop = FALSE]
+    i <- L$ri; gn <- as.character(d$gene)[i]; lo <- as.character(d$ADlocus)[i]
+    out <- data.frame(ADlocus = lo,
+                      src = ifelse(is.na(gn) | gn == "", lo, gn),
+                      src_chr = sub("^chr", "", as.character(d$chr)[i]),
+                      src_pos = as.numeric(d$pos[i]),
+                      tgt = L$tgt, modality = L$mod, stringsAsFactors = FALSE)
+  }
   if (is.null(out) || !nrow(out)) return(NULL)
   out <- unique(out)
   ## transmap pairs, written by build_shiny_data.R from the release. Same

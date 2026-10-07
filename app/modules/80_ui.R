@@ -75,7 +75,9 @@ link_defs <- function(gene_idx = NULL, rsid_idx = NULL) {
 }
 
 igv_head <- tagList(
-  tags$script(src = "https://cdn.jsdelivr.net/npm/igv@2.15.11/dist/igv.min.js"),
+  tags$script(src = "https://cdn.jsdelivr.net/npm/igv@2.15.11/dist/igv.min.js", defer = NA),
+  ## Tell the wanggroup.org page the first view has drawn, so it can drop its loading screen.
+  tags$script(HTML("$(document).one('shiny:idle', function(){ try { if (window.parent !== window) window.parent.postMessage('adx-ready', 'https://wanggroup.org'); } catch (e) {} });")),
   tags$script(HTML(paste0(
     "var adIgvBrowser = null; var adIgvPending = null; var adIgvTries = 0;",
     "function adIgvGo(loc){",

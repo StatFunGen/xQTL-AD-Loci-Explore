@@ -3,7 +3,7 @@
 Code and released tables behind the **AD Loci Explorer**, a browsable view of the
 ADSP FunGen-xQTL release across 195 candidate Alzheimer's disease loci.
 
-Live app: https://jenny-empawi.shinyapps.io/xQTL-AD-loci-Explore/
+Live app: https://wanggroup.org/xQTL-AD-loci-explorer/ (direct link: https://jenny-empawi.shinyapps.io/xQTL-AD-loci-Explore/)
 
 ## Layout
 

@@ -94,14 +94,17 @@ a:hover{ color:#1c5cab; }
 
 ")))
 
+## Keep compiled styles inside the app folder so a fresh server reuses them.
+options(sass.cache = sass::sass_file_cache(file.path(getwd(), "sass-cache")))
+
 app_theme <- bs_theme(
   version = 5, primary = "#233947", "navbar-bg" = "#ffffff",
   bg = "#ffffff", fg = "#233947",
   "body-bg" = "#ffffff", "card-bg" = "#ffffff",
   "border-color" = "#dde2e6",
-  base_font = font_google("Inter"),
-  heading_font = font_google("Inter"),
-  code_font = font_google("IBM Plex Mono")
+  base_font = font_google("Inter", local = FALSE),
+  heading_font = font_google("Inter", local = FALSE),
+  code_font = font_google("IBM Plex Mono", local = FALSE)
 )
 
 # collapse the mobile navbar after a tab is chosen
