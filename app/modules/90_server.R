@@ -765,6 +765,11 @@ observeEvent(input$locus_prev, {
       class = "display compact hover")
   }, server = TRUE)
 
+  output$dl_locus_tbl <- downloadHandler(
+    filename = function() sprintf("AD_locus_%s_genes_evidence_20261002.csv", gsub("[^A-Za-z0-9]+", "_", selected_locus())),
+    content  = function(f) .prov_csv(dat[dat$ADlocus == selected_locus(), , drop = FALSE], f,
+                                     paste("genes and evidence at", selected_locus())))
+
   # ----- Trans tab -----
   trans_d <- reactive({
     d <- dat[na_fill(dat$has_trans, FALSE), ]
