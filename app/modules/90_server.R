@@ -360,6 +360,14 @@ output$p_trans <- renderPlot({
       as.data.frame()
   })
 
+  output$dl_gene_sum <- downloadHandler(
+    filename = function() "AD_loci_gene_summary_20261002.csv",
+    content  = function(f) {
+      g <- gene_summary(); if (is.null(g)) g <- data.frame()
+      g$.tr <- NULL
+      .prov_csv(g, f, "Genes tab, gene summary for the current filters")
+    })
+
   output$gene_tbl <- renderDT({
     g <- gene_summary()
     validate(need(!is.null(g) && nrow(g) > 0, "No genes match the current filters."))
@@ -1049,7 +1057,7 @@ observeEvent(input$locus_prev, {
     if (is.null(e) || !nrow(e)) return(div(class = "dc-note", "No modality records."))
     cx <- intersect(CTX_ORD, unique(e$ctx))
     md <- intersect(MOD_ORD, unique(e$mod))
-    hdr <- tags$tr(tags$th("Cell type"), lapply(md, tags$th), tags$th("Gene records"))
+    hdr <- tags$tr(tags$th("Context"), lapply(md, tags$th), tags$th("Gene records"))
     rows <- lapply(cx, function(k) {
       sub <- e[e$ctx == k, , drop = FALSE]
       tags$tr(
@@ -1823,6 +1831,19 @@ output$gp_matrix <- renderUI({
       class = "display compact hover")
   }, server = TRUE)
 
+  output$dl_bt_query <- downloadHandler(
+    filename = function() "AD_loci_batch_entries.csv",
+    content  = function(f) {
+      m <- bt_m(); req(!is.null(m))
+      strip <- function(x) gsub("<[^>]+>", "", as.character(x))
+      .prov_csv(data.frame(entry = m$query, read_as = m$kind,
+                           found = ifelse(m$matched, "yes", "no"),
+                           n_AD_loci = m$n_loci, n_genes = m$n_genes,
+                           best_tier = m$best_tier, loci_matched = strip(m$loci),
+                           stringsAsFactors = FALSE),
+                f, "batch list, one row per entry")
+    })
+
   output$bt_tier_plot <- renderPlot(.tier_bar(bt_r()), res = 96)
   output$bt_rows_tbl  <- renderDT(.rec_tbl(bt_r()), server = TRUE)
 
@@ -2312,15 +2333,46 @@ output$gp_matrix <- renderUI({
       tags$tbody(
         row("Region", txt(fa$region), txt(fb$region), FALSE),
         row("Best tier", tchip(fa$best), tchip(fb$best), FALSE),
-        row("Genes implicated", format(fa$genes, big.mark = ","), format(fb$genes, big.mark = ",")),
+        row("Target genes", format(fa$genes, big.mark = ","), format(fb$genes, big.mark = ",")),
         row("Gene records", format(fa$recs, big.mark = ","), format(fb$recs, big.mark = ",")),
-        row("Cell types", fa$ctx, fb$ctx),
+        row("Contexts", fa$ctx, fb$ctx),
         row("Modalities", fa$mods, fb$mods),
         row("Trans links", format(fa$trans, big.mark = ","), format(fb$trans, big.mark = ",")),
         row("Strongest gene", txt(fa$top), txt(fb$top), FALSE),
         row("Lead variant", txt(fa$lead), txt(fb$lead), FALSE)))
   })
 
+
+  output$dl_cmp <- downloadHandler(
+    filename = function() sprintf("AD_loci_compare_%s_%s.csv",
+                                  gsub("[^A-Za-z0-9]+", "_", input$cmp_a), gsub("[^A-Za-z0-9]+", "_", input$cmp_b)),
+    content  = function(f) {
+      a <- input$cmp_a; b <- input$cmp_b
+      fa <- .loc_facts(a); fb <- .loc_facts(b)
+      v <- function(x) if (is.null(x) || length(x) == 0 || is.na(x)) "" else as.character(x)
+      k <- c(region = "Region", best = "Best tier", genes = "Target genes", recs = "Gene records",
+             ctx = "Contexts", mods = "Modalities", trans = "Trans links",
+             top = "Strongest gene", lead = "Lead variant")
+      d <- data.frame(field = unname(k),
+                      a = vapply(names(k), function(n) v(fa[[n]]), ""),
+                      b = vapply(names(k), function(n) v(fb[[n]]), ""),
+                      stringsAsFactors = FALSE)
+      names(d) <- c("field", a, b)
+      .prov_csv(d, f, "comparison of two AD loci")
+    })
+
+  output$dl_doc_assays <- downloadHandler(
+    filename = function() "AD_loci_context_by_modality_counts.csv",
+    content  = function(f) {
+      e <- parse_ctx_tokens(dat)
+      if (is.null(e) || !nrow(e)) { .prov_csv(data.frame(), f, "context by modality counts"); return(invisible()) }
+      cx <- intersect(CTX_ORD, unique(e$ctx)); md <- intersect(MOD_ORD, unique(e$mod))
+      d <- data.frame(context = vapply(cx, function(k) if (k %in% names(CTX_FULL)) CTX_FULL[[k]] else k, ""),
+                      stringsAsFactors = FALSE)
+      for (m in md) d[[m]] <- vapply(cx, function(k) sum(e$ctx == k & e$mod == m), 0L)
+      d$gene_records <- vapply(cx, function(k) sum(e$ctx == k), 0L)
+      .prov_csv(d, f, "gene records by context and modality")
+    })
 
   # ---- trans figure exports --------------------------------------------
   .tn_rows <- reactive({

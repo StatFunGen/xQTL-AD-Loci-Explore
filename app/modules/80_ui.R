@@ -987,6 +987,7 @@ ui <- page_navbar(
               div(class = "dc-figt", info("Compare two loci",
                 "A side by side read of two loci. Rows that match on both sides are dimmed, so what differs stands out.")),
               div(class = "dc-figc", "Pick any two AD loci to see how they differ.")),
+            div(class = "dc-exp", downloadLink("dl_cmp", "CSV", class = "dc-btn")),
             div(class = "cmp-pick",
               selectInput("cmp_a", "First locus", choices = loci, selected = loci[1], width = "100%"),
               selectInput("cmp_b", "Second locus", choices = loci, selected = loci[2], width = "100%")),
@@ -1099,7 +1100,9 @@ ui <- page_navbar(
         ev_key(),
         conditionalPanel("input.view_mode == 'gene'",
           card(full_screen = TRUE,
-               card_header("Gene summary  ·  click a gene to see its variant rows"),
+               card_header(div(style = "display:flex;justify-content:space-between;align-items:center;gap:12px",
+                 span("Gene summary  ·  click a gene to see its variant rows"),
+                 downloadLink("dl_gene_sum", "CSV", class = "dc-btn"))),
                withSpinner(DTOutput("gene_tbl"), type = 8, color = "#2c7fb8", size = 0.6))),
         conditionalPanel("input.view_mode == 'variant'",
       card(full_screen = TRUE,
@@ -1518,7 +1521,9 @@ ui <- page_navbar(
         div(class = "doc-sec", id = "doc-cell-types-and-assays",
           h2(class = "doc-h", "Contexts and modalities"),
           p("Number of gene records in this release for each context and molecular modality."),
-          uiOutput("doc_assays")),
+          uiOutput("doc_assays"),
+          div(class = "dc-exp", style = "margin-top:8px",
+              downloadLink("dl_doc_assays", "CSV", class = "dc-btn"))),
       )))
 
 )
