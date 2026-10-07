@@ -77,7 +77,7 @@ link_defs <- function(gene_idx = NULL, rsid_idx = NULL) {
 igv_head <- tagList(
   tags$script(src = "https://cdn.jsdelivr.net/npm/igv@2.15.11/dist/igv.min.js", defer = NA),
   ## Tell the wanggroup.org page the first view has drawn, so it can drop its loading screen.
-  tags$script(HTML("$(document).one('shiny:idle', function(){ try { if (window.parent !== window) window.parent.postMessage('adx-ready', 'https://wanggroup.org'); } catch (e) {} });")),
+  tags$script(HTML("$(document).one('shiny:idle', function(){ try { if (window.parent !== window) window.parent.postMessage('adx-ready', 'https://wanggroup.org'); } catch (e) {} }); (function(){ if (window.parent === window) return; function send(){ try { window.parent.postMessage({ adxq: location.search }, 'https://wanggroup.org'); } catch (e) {} } ['pushState','replaceState'].forEach(function(k){ var o = history[k]; history[k] = function(){ var r = o.apply(this, arguments); send(); return r; }; }); })();")),
   tags$script(HTML(paste0(
     "var adIgvBrowser = null; var adIgvPending = null; var adIgvTries = 0;",
     "function adIgvGo(loc){",
@@ -770,7 +770,7 @@ app_footer <- tags$footer(class = "site-footer",
       div(class = "foot-h", "Resources"),
       tags$a(href = "https://statfungen.github.io/xqtl-resources/", target = "_blank",
              rel = "noopener", "Dataset catalogue"),
-      tags$a(href = "https://github.com/StatFunGen/xQTL-AD-Loci-Explore", target = "_blank",
+      tags$a(href = "https://github.com/StatFunGen/xQTL-AD-loci-explorer", target = "_blank",
              rel = "noopener", "Source code"),
              tags$a(href = "https://www.synapse.org/Synapse:syn68872650", target = "_blank",
                     rel = "noopener", "Data on Synapse"),
@@ -1275,7 +1275,7 @@ ui <- page_navbar(
             span("Each file carries the release label and genome build in its name."),
             tags$a(href = "https://statfungen.github.io/xqtl-resources/",
                    target = "_blank", rel = "noopener", "Dataset catalogue"),
-            tags$a(href = "https://github.com/StatFunGen/xQTL-AD-Loci-Explore",
+            tags$a(href = "https://github.com/StatFunGen/xQTL-AD-loci-explorer",
                    target = "_blank", rel = "noopener", "Source code"))),
         div(class = "dl-side",
           div(class = "dl-card",
