@@ -53,21 +53,16 @@ parse_ctx_tokens <- function(d) {
   d <- d[!is.na(d$gene) & d$gene != "" & !is.na(d$ordered_contexts) &
          nzchar(trimws(as.character(d$ordered_contexts))), , drop = FALSE]
   if (!nrow(d)) return(NULL)
-  out <- do.call(rbind, lapply(seq_len(nrow(d)), function(i) {
-    tk <- trimws(unlist(strsplit(as.character(d$ordered_contexts[i]), ";")))
-    tk <- tk[nzchar(tk)]
-    m  <- regmatches(tk, regexec(rx, tk))
-    ok <- vapply(m, length, integer(1)) == 6
-    if (!any(ok)) return(NULL)
-    m <- m[ok]
-    data.frame(gene = as.character(d$gene[i]),
-               ctx  = vapply(m, function(z) z[2], character(1)),
-               mod  = sub("^[pu]-", "", vapply(m, function(z) z[3], character(1))),
-               tier = as.integer(vapply(m, function(z) z[5], character(1))),
-               n    = as.integer(vapply(m, function(z) z[6], character(1))),
-               stringsAsFactors = FALSE)
-  }))
-  if (is.null(out) || !nrow(out)) return(NULL)
+  tl   <- strsplit(as.character(d$ordered_contexts), ";", fixed = TRUE)
+  tk   <- trimws(unlist(tl, use.names = FALSE))
+  gene <- rep(as.character(d$gene), lengths(tl))
+  keep <- nzchar(tk); tk <- tk[keep]; gene <- gene[keep]
+  m  <- regmatches(tk, regexec(rx, tk))
+  ok <- lengths(m) == 6
+  if (!any(ok)) return(NULL)
+  mm <- do.call(rbind, m[ok])
+  out <- data.frame(gene = gene[ok], ctx = mm[, 2], mod = sub("^[pu]-", "", mm[, 3]),
+                    tier = as.integer(mm[, 5]), n = as.integer(mm[, 6]), stringsAsFactors = FALSE)
   out %>% dplyr::group_by(gene, ctx, mod) %>%
     dplyr::summarise(tier = min(tier), n = max(n), .groups = "drop") %>%
     as.data.frame()
