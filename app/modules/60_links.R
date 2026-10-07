@@ -87,12 +87,12 @@ pretty_region <- function(r) {
 # Compact keys shown next to the tables, so the tier scale and the evidence
 # states can be read without opening the methods page.
 TIER_DEFS <- c(
-  T1 = "Localized xQTL support plus orthogonal gene-level evidence",
-  T2 = "Multi-trait colocalization plus orthogonal evidence",
+  T1 = "Localized xQTL support plus MR, causal TWAS or multi-context causal TWAS",
+  T2 = "Multi-trait colocalization plus MR or causal TWAS",
   T3 = "Localized support plus TWAS",
-  T4 = "Localized support on its own",
-  T5 = "Additional localized evidence at relaxed coverage",
-  T6 = "TWAS or MR evidence only, with no localized AD-xQTL support")
+  T4 = "Localized support alone",
+  T5 = "Additional localized evidence, including credible sets at 50% or 70% coverage",
+  T6 = "TWAS or MR evidence only, without localized AD-xQTL support")
 
 tier_key <- function() {
   div(class = "tierkey",
@@ -111,7 +111,7 @@ ev_key <- function() {
     span(HTML('<span class="ev ev-ns">NS</span>'), " tested, not significant"),
     span(HTML('<span class="ev ev-na">&mdash;</span>'), " not available"),
     span(class = "keynote",
-         "A dash means the evidence is unknown for that entry, not that it was tested and found negative."))
+         "A dash means unknown, which is different from tested and negative."))
 }
 hero_banner <- local({
   set.seed(7)

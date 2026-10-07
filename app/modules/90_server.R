@@ -681,7 +681,7 @@ observeEvent(input$locus_prev, {
     d <- dat[dat$ADlocus == loc, , drop = FALSE]
     g <- sort(unique(d$gene[!is.na(d$gene) & nzchar(d$gene)]))
     if (!length(g)) return(div(class = "dc-note",
-      "No gene is named at this locus in this release."))
+      "No target gene is recorded at this locus in this release."))
     gt <- vapply(g, function(x) .gene_tier(d, x), character(1))
     ok <- !is.na(gt)
     best <- if (any(ok)) sort(gt[ok])[1] else NA_character_
@@ -689,19 +689,19 @@ observeEvent(input$locus_prev, {
     i <- match(loc, locus_registry$ADlocus)
     lead <- if (!is.na(i)) locus_registry$lead_rsid[i] else NA_character_
     subj <- if (!is.na(lead)) lead else loc
-    s1 <- paste0(subj, " implicates ", length(g), if (length(g) == 1L) " gene at " else " genes at ", loc, ".")
-    s2 <- if (is.na(best)) "No gene here carries an assigned tier." else
+    s1 <- paste0(subj, " is linked to ", length(g), if (length(g) == 1L) " target gene at " else " target genes at ", loc, ".")
+    s2 <- if (is.na(best)) "No gene at this locus has an assigned tier." else
             paste0(paste(bg, collapse = " and "),
                    if (length(bg) == 1L) " has " else " have ",
-                   if (identical(best, "T6")) "T6 support, which rests on TWAS or MR evidence without localized AD-xQTL support."
+                   if (identical(best, "T6")) "T6 support, meaning TWAS or MR evidence without localized AD-xQTL support."
                    else paste0("localized ", best, " support."))
     t6 <- g[ok & gt == "T6"]
     t6 <- setdiff(t6, bg)
     s3 <- if (!length(t6)) "" else
             paste0(" ", paste(t6, collapse = ", "),
-                   if (length(t6) == 1L) " is T6, indicating TWAS or MR evidence without localized AD-xQTL support."
-                   else " are T6, indicating TWAS or MR evidence without localized AD-xQTL support.")
-    s4 <- if (is.na(best)) "" else paste0(" The locus-level strongest tier is therefore ", best, ".")
+                   if (length(t6) == 1L) " is T6, with TWAS or MR evidence but no localized AD-xQTL support."
+                   else " are T6, with TWAS or MR evidence but no localized AD-xQTL support.")
+    s4 <- if (is.na(best)) "" else paste0(" The best tier at this locus is therefore ", best, ".")
     led <- lapply(g[ok], function(x) {
       r <- d[!is.na(d$gene) & d$gene == x, , drop = FALSE][1, , drop = FALSE]
       tt <- .gene_tier(d, x)
@@ -720,8 +720,8 @@ observeEvent(input$locus_prev, {
         p(class = "interp-t", paste0(s1, " ", s2, s3, s4)),
         div(class = "interp-led", led),
         p(class = "interp-f",
-          "Every statement above is taken from the rows in the table below. ",
-          "Tiers order evidence strength; they are not statements of causality."))
+          "Every statement above comes from the rows in the table below. ",
+          "Tiers rank strength of evidence and do not establish causality."))
   })
   output$locus_meta <- renderUI({
     loc <- selected_locus(); req(loc)
@@ -746,12 +746,12 @@ observeEvent(input$locus_prev, {
       if (!is.na(i) && !is.na(locus_registry$start[i]) &&
           locus_registry$start[i] == locus_registry$end[i])
         div(class = "scope-note",
-            "One variant position is recorded at this locus, so this is a single coordinate rather than a span."),
+            "This locus has one recorded variant position, so it is shown as a single coordinate."),
       div(class = "locus-sub",
         if (!is.na(lead)) kv("lead variant", tags$code(lead)),
-        kvt("genes", ng, "Genes with evidence recorded at this locus. Some of them sit outside the region drawn above: a variant here can act on a gene far away, and that distal evidence is still counted for the locus."), kv("variants", nv),
-        if (!is.na(bgl)) kvt("strongest gene here", tags$b(bgl), "The gene with the strongest evidence at this locus. Localized support means a variant here was fine-mapped to the gene. Gene-level support (TWAS, MR) links the gene to AD without pinning a variant. Distal support means the variant acts on a gene outside this locus."),
-        if (!is.na(bt)) kvt("its tier", bt, "The best tier reached by any gene at this locus. A tier belongs to a gene, not to the locus, and a gene carries its best tier from anywhere in the release. So a locus can read T4 while a gene in it, such as APOE, reads T6, because that gene has TWAS or MR evidence only and no localized AD-xQTL support."),
+        kvt("genes", ng, "Target genes with evidence at this locus. Some lie outside the region drawn above, because a variant here can act on a distant gene through a trans effect, and that evidence still counts for the locus."), kv("variants", nv),
+        if (!is.na(bgl)) kvt("strongest gene here", tags$b(bgl), "Target gene with the strongest evidence at this locus. Localized support means a variant here was fine-mapped to the gene. Gene-level support (TWAS, MR) links the gene to AD without identifying a variant. Trans support means the variant acts on a gene outside this locus."),
+        if (!is.na(bt)) kvt("its tier", bt, "Best tier among the target genes at this locus. Tiers belong to genes, and each gene carries its best tier from anywhere in the release. A locus can therefore read T4 while APOE within it reads T6, because APOE has TWAS or MR evidence without localized AD-xQTL support."),
         if (!is.na(sg)) kv("GWAS", sg)),
       div(class = "locus-id", "pipeline ID ", tags$code(loc)))
   })
@@ -818,7 +818,7 @@ observeEvent(input$locus_prev, {
     if (is.null(d)) return(NULL)
     cc <- ctx_cols(d$context)
     datatable(tibble(Locus = d$locus, `Source gene` = d$source, rsID = d$rsid,
-                     Modality = d$modality, `Distal target` = d$target, `Credible set` = d$coverage,
+                     Modality = d$modality, `Trans target gene` = d$target, `Credible set` = d$coverage,
                      `Genes in program` = d$n_genes, Tier = d$tier,
                      `Cell type or region` = cc$ctx, Dataset = cc$dset,
                      `Assay context` = cc$mod),
@@ -874,8 +874,8 @@ observeEvent(input$locus_prev, {
     d <- trans_pairs[trans_pairs$ADlocus == loc, , drop = FALSE]
     if (!nrow(d))
       return(div(class = "note",
-        "No trans evidence with mapped coordinates is recorded for this locus. That is ",
-        "not evidence against distal regulation; none was reported here."))
+        "No trans evidence with mapped coordinates is recorded for this locus. The absence of a ",
+        "record does not count as evidence against trans regulation."))
     i <- match(loc, locus_registry$ADlocus)
     srcreg <- if (!is.na(i)) pretty_region(locus_registry$region[i]) else loc
     # one line per distal gene, with every assay that supports it, so the count
@@ -901,7 +901,7 @@ observeEvent(input$locus_prev, {
         div(class = "tl-head",
             div(class = "tl-h-src", srcreg),
             div(class = "tl-h-n",
-                sprintf("%d distal gene%s on %d chromosome%s", nrow(d),
+                sprintf("%d trans target gene%s on %d chromosome%s", nrow(d),
                         if (nrow(d) == 1) "" else "s", nc,
                         if (nc == 1) "" else "s"))),
         div(class = "ti-wrap", illus)))
@@ -915,7 +915,7 @@ observeEvent(input$locus_prev, {
     tagList(
       div(class = "tl-head",
           div(class = "tl-h-src", srcreg),
-          div(class = "tl-h-n", sprintf("%d distal target%s on %d chromosome%s",
+          div(class = "tl-h-n", sprintf("%d trans target gene%s on %d chromosome%s",
               nrow(d), if (nrow(d) == 1) "" else "s",
               nc, if (nc == 1) "" else "s"))),
       div(class = "tl-list", rows))
@@ -930,7 +930,7 @@ observeEvent(input$locus_prev, {
   # chromosome strands say it more plainly
   output$tn_figure <- renderUI({
     loc <- input$tn_loc
-    if (is.null(loc) || !nzchar(loc)) return(div(class = "dc-note", "Pick a locus to draw its distal targets."))
+    if (is.null(loc) || !nzchar(loc)) return(div(class = "dc-note", "Pick a locus to draw its trans target genes."))
     n <- if (is.null(trans_pairs)) 0L else
       length(unique(trans_pairs$tgt[trans_pairs$ADlocus == loc]))
     if (n >= 3)
@@ -938,7 +938,7 @@ observeEvent(input$locus_prev, {
         div(class = "dc-exp", span(class = "dc-kicker", "Export"),
             downloadLink("dl_trans_png", "PNG", class = "dc-btn"),
             downloadLink("dl_trans_csv", "CSV", class = "dc-btn")),
-        if (n > 40) div(class = "dc-note", style = "margin-bottom:10px", paste0("Showing the 40 distal targets with the most assay support, of ", format(n, big.mark = ","), ". The full list is in the table below.")),
+        if (n > 40) div(class = "dc-note", style = "margin-bottom:10px", paste0("Showing the 40 trans target genes with the most supporting modalities, of ", format(n, big.mark = ","), ". The table below lists all of them.")),
         if (identical(input$tn_view, "Bars"))
           withSpinner(plotOutput("trans_bars", height = "680px"),
                       type = 8, color = "#2a78d6", size = 0.6)
@@ -947,7 +947,7 @@ observeEvent(input$locus_prev, {
                       type = 8, color = "#2a78d6", size = 0.6)))
     tagList(
       div(class = "dc-note", style = "margin-bottom:14px",
-          sprintf("%s distal gene%s at this locus, too few for a circle. Shown on the chromosome strands instead.",
+          sprintf("%s trans target gene%s at this locus, too few for a circle, so they are drawn on the chromosome strands.",
                   n, ifelse(n == 1, "", "s"))),
       div(class = "dc-exp", span(class = "dc-kicker", "Export"),
           downloadLink("dl_trans_svg", "SVG", class = "dc-btn"),
@@ -1041,7 +1041,7 @@ observeEvent(input$locus_prev, {
 
   output$doc_assays <- renderUI({
     e <- parse_ctx_tokens(dat)
-    if (is.null(e) || !nrow(e)) return(div(class = "dc-note", "No assay records."))
+    if (is.null(e) || !nrow(e)) return(div(class = "dc-note", "No modality records."))
     cx <- intersect(CTX_ORD, unique(e$ctx))
     md <- intersect(MOD_ORD, unique(e$mod))
     hdr <- tags$tr(tags$th("Cell type"), lapply(md, tags$th), tags$th("Gene records"))
@@ -1063,8 +1063,8 @@ observeEvent(input$locus_prev, {
     tagList(
       tags$table(class = "doc-tbl", tags$thead(hdr), tags$tbody(rows)),
       div(class = "dc-note", style = "margin-top:10px",
-        "Counts are gene records in this release carrying that cell type and assay; a ",
-        HTML("&middot;"), " means the combination does not appear."))
+        "Counts are gene records in this release for each context and modality; a ",
+        HTML("&middot;"), " means the combination does not occur."))
   })
 
   .dl_file <- function(path, name) downloadHandler(
@@ -1157,7 +1157,7 @@ observeEvent(input$locus_prev, {
 
   output$ct_key <- renderUI({
     div(
-      div(class = "ctk-h", "Cell type colours"),
+      div(class = "ctk-h", "Cell type colors"),
       div(class = "ctkey",
         lapply(CTX_ORD, function(k)
           span(class = "ctk-i",
@@ -1278,9 +1278,8 @@ observeEvent(input$locus_prev, {
     g <- input$gp_gene
     if (is.null(g) || !nzchar(g))
       return(div(class = "gp-h", div(class = "dc-note",
-        "Start with a gene. Type a symbol such as BIN1 or TREM2, or an Ensembl ID, ",
-        "in the box above. You will get its tier, the cell types and assays behind ",
-        "it, and every AD locus where it is implicated.")))
+        "Enter a gene symbol such as BIN1 or TREM2, or an Ensembl ID, in the box above to see ",
+        "its tier, its contexts and modalities, and every AD locus it is linked to.")))
     d <- gp_rows(); e <- gp_ev()
     k <- match(as.character(d$top_confidence), TIER_SEQ)
     best <- if (any(!is.na(k))) TIER_SEQ[min(k, na.rm = TRUE)] else NA_character_
@@ -1317,7 +1316,7 @@ output$gp_matrix <- renderUI({
     e <- gp_ev()
     if (is.null(e) || !nrow(e))
       return(div(class = "dc-note", style = "margin-top:10px",
-                 "No cell-type or assay records for this gene."))
+                 "No context or modality records for this gene."))
     md <- intersect(MOD_ORD, unique(e$mod))
     cx <- intersect(CTX_ORD, unique(e$ctx))
     tags$table(class = "gp-tbl",
@@ -1521,7 +1520,7 @@ output$gp_matrix <- renderUI({
         tags$summary(paste0("Read this figure as a table (", nrow(r),
                             " flows, keyboard accessible)")),
         div(class = "figdata-scroll", role = "region", tabindex = "0",
-            `aria-label` = "Flows drawn in the cell type to assay to tier figure",
+            `aria-label` = "Flows drawn in the context to modality to tier figure",
           tags$table(class = "figtbl",
             tags$caption(paste0(nrow(r),
               " flows, widest first. Each row is one ribbon in the figure.")),
@@ -1586,13 +1585,13 @@ output$gp_matrix <- renderUI({
     drawable <- !is.null(tl) && nzchar(tl) && tl %in% unlist(trans_loci_choices)
     if (isTRUE(input$tn_sync) && !is.null(tl) && !drawable)
       return(div(class = "ax-status", role = "status",
-        paste0("The table locus ", tl, " has no distal targets, so nothing can be drawn for it. ",
+        paste0("The table locus ", tl, " has no trans target genes to draw. ",
                "The figure below shows ", if (is.null(fl)) "another locus" else fl, ".")))
     if (!is.null(tl) && !is.null(fl) && !identical(tl, fl))
       return(div(class = "ax-status", role = "status",
         paste0("Figure locus ", fl, ". Table and export locus ", tl, ".")))
     div(class = "ax-status", role = "status",
-        "Figure, table and export are on the same locus. The figure draws up to 40 distal targets.")
+        "Figure, table and export show the same locus. The figure draws up to 40 trans target genes.")
   })
 
   output$trans_bars <- renderPlot({
@@ -1608,9 +1607,9 @@ output$gp_matrix <- renderUI({
     d$modality <- factor(d$modality, levels = names(TMOD_COL)[names(TMOD_COL) %in% d$modality])
     ggplot(d, aes(y = tgt, fill = modality)) +
       geom_bar(width = 0.72) +
-      scale_fill_manual(values = TMOD_COL, name = "Assay", drop = TRUE) +
+      scale_fill_manual(values = TMOD_COL, name = "Modality", drop = TRUE) +
       scale_x_continuous(breaks = function(z) seq(0, ceiling(max(z)), by = 1)) +
-      labs(x = "Number of assays supporting the pair", y = NULL) +
+      labs(x = "Number of modalities supporting the pair", y = NULL) +
       g_theme +
       theme(panel.grid.major.y = element_blank(),
             axis.text.y = element_text(size = 9))
@@ -1682,7 +1681,7 @@ output$gp_matrix <- renderUI({
                      style = sprintf("width:%.3f%%;background:%s", pc, .dk(cols[[m]])),
                      if (pc > 7) format(n[[m]], big.mark = ",") else "",
                      span(class = "sb-bub",
-                          sprintf("%s · %s distal target%s at %s", m,
+                          sprintf("%s · %s trans target gene%s at %s", m,
                                   format(n[[m]], big.mark = ","),
                                   ifelse(n[[m]] == 1, "", "s"), loc)))
               })),
@@ -1928,7 +1927,7 @@ output$gp_matrix <- renderUI({
       r <- g(.tn_rows())
       if (is.null(r) || !is.data.frame(r)) return(NULL)
       return(paste0(format(nrow(r), big.mark = ","),
-                    if (nrow(r) == 1L) " assay-specific trans record" else " assay-specific trans records"))
+                    if (nrow(r) == 1L) " modality-specific trans record" else " modality-specific trans records"))
     }
     NULL
   }
@@ -1948,9 +1947,9 @@ output$gp_matrix <- renderUI({
             paste0("# Generated: ", format(Sys.time(), tz = "America/New_York", usetz = TRUE)),
             paste0("# Query: ", .cur_q()),
             paste0("# Rows: ", nrow(d), "  Columns: ", ncol(d)),
-            "# An empty cell means the value is not recorded in this release. It is not a zero",
-            "# and not a tested null. TWAS, MR and cTWAS columns do distinguish a tested null.",
-            "# Tiers T1 to T6 order evidence strength and are not statements of causality.",
+            "# An empty cell means no value is recorded in this release, which is different from",
+            "# a zero or a tested null. TWAS, MR and cTWAS columns do record tested nulls.",
+            "# Tiers T1 to T6 rank strength of evidence and do not establish causality.",
             "# Column definitions are in the Documentation tab of the application.",
             paste0("# Cite: ", .cite_txt),
             "#")
@@ -2197,7 +2196,7 @@ output$gp_matrix <- renderUI({
       it <- c(it, paste("locus", input$trans_locus))
     n_now <- tryCatch(nrow(tn_tbl_d()), error = function(e) NA_integer_)
     if (identical(input$tn_scope, "locus") && !is.na(n_now) && n_now == 0L)
-      it <- c(it, "no distal targets for this locus")
+      it <- c(it, "no trans target genes for this locus")
     if (length(input$tmod)) it <- c(it, paste(input$tmod, collapse = " or "))
     q <- trimws(if (is.null(input$tn_q)) "" else input$tn_q)
     if (nzchar(q)) it <- c(it, paste0("matching ", q))
@@ -2311,8 +2310,8 @@ output$gp_matrix <- renderUI({
         row("Genes implicated", format(fa$genes, big.mark = ","), format(fb$genes, big.mark = ",")),
         row("Gene records", format(fa$recs, big.mark = ","), format(fb$recs, big.mark = ",")),
         row("Cell types", fa$ctx, fb$ctx),
-        row("Assays", fa$mods, fb$mods),
-        row("Distal links", format(fa$trans, big.mark = ","), format(fb$trans, big.mark = ",")),
+        row("Modalities", fa$mods, fb$mods),
+        row("Trans links", format(fa$trans, big.mark = ","), format(fb$trans, big.mark = ",")),
         row("Strongest gene", txt(fa$top), txt(fb$top), FALSE),
         row("Lead variant", txt(fa$lead), txt(fb$lead), FALSE)))
   })
