@@ -1661,8 +1661,8 @@ output$gp_matrix <- renderUI({
     if (is.null(d) || !nrow(d))
       return(div(class = "dc-note", "No trans pairs recorded in this release."))
     mods <- intersect(c("Trans genes", "Transmap", "snRNA", "pQTL", "gpQTL", "Hotspot"), unique(d$modality))
-    cols <- c(`Trans genes` = "#7b52ab", Transmap = "#8b1e3f", snRNA = "#2a78d6", pQTL = "#da532c",
-              gpQTL = "#17868f", Hotspot = "#a8791b")
+    cols <- c(`Trans genes` = "#c9b8e4", Transmap = "#eab3c3", snRNA = "#b3cff2", pQTL = "#f4bba6",
+              gpQTL = "#a9d8da", Hotspot = "#e8d09e")
     tot <- sort(vapply(split(d$target, d$locus), function(z) length(unique(z)), integer(1)), decreasing = TRUE)
     top <- names(tot)[seq_len(min(12, length(tot)))]
     mx  <- max(as.numeric(tot[top]))
@@ -1678,7 +1678,7 @@ output$gp_matrix <- renderUI({
                 if (n[[m]] <= 0) return(NULL)
                 pc <- barw * n[[m]] / sum(n)
                 span(class = "sb-seg",
-                     style = sprintf("width:%.3f%%;background:%s", pc, .dk(cols[[m]])),
+                     style = sprintf("width:%.3f%%;background:%s;color:#233947", pc, cols[[m]]),
                      if (pc > 7) format(n[[m]], big.mark = ",") else "",
                      span(class = "sb-bub",
                           sprintf("%s · %s trans target gene%s at %s", m,
@@ -1691,7 +1691,7 @@ output$gp_matrix <- renderUI({
       div(class = "sb-key",
           lapply(mods, function(m)
             span(class = "sb-ki",
-                 span(class = "sb-sw", style = sprintf("background:%s", .dk(cols[[m]]))), m))),
+                 span(class = "sb-sw", style = sprintf("background:%s", cols[[m]])), m))),
       div(class = "sb-wrap", rows))
   })
 
