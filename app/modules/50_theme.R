@@ -59,7 +59,7 @@ dk_theme <- function(on) {
   e <- e[!is.na(e$ctx) & !is.na(e$mod) & !is.na(e$tier), , drop = FALSE]
   e$ctxf <- unname(CTX_FULL[e$ctx])
   keep <- c("eQTL", "sQTL", "pQTL", "mQTL")
-  e$modg <- ifelse(e$mod %in% keep, e$mod, "other assays")
+  e$modg <- ifelse(e$mod %in% keep, e$mod, "other modalities")
   e$tierl <- paste0("T", e$tier)
   e
 })
@@ -88,7 +88,7 @@ home_river <- function(dark = FALSE) {
   if (is.null(e) || !nrow(e)) return(NULL)
   bg  <- "#ffffff"; ink <- "#233947"; sub <- "#5c6b75"
   ctxs <- unname(CTX_FULL[CTX_ORD]); ctxs <- ctxs[ctxs %in% e$ctxf]
-  mods <- c("eQTL", "sQTL", "pQTL", "mQTL", "other assays")
+  mods <- c("eQTL", "sQTL", "pQTL", "mQTL", "other modalities")
   mods <- mods[mods %in% e$modg]
   tiers <- TIER_SEQ[TIER_SEQ %in% e$tierl]
   nodes <- c(ctxs, mods, tiers)
@@ -125,7 +125,7 @@ home_river <- function(dark = FALSE) {
     plotly::layout(font = list(family = "Inter, sans-serif", size = 12.5, color = ink),
       margin = list(l = 8, r = 8, t = 8, b = 30),
       paper_bgcolor = bg, plot_bgcolor = bg,
-      annotations = list(ann(0, "Cell type", "left"), ann(0.5, "Assay", "center"),
+      annotations = list(ann(0, "Context", "left"), ann(0.5, "Modality", "center"),
                          ann(1, "Evidence tier", "right"))) %>%
     plotly::config(displayModeBar = FALSE)
 }
