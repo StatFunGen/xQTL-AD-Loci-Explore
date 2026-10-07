@@ -1959,14 +1959,11 @@ output$gp_matrix <- renderUI({
       suppressWarnings(readr::write_csv(d, f, append = TRUE, col_names = TRUE))
   }
   .cite_url <- function() {
-    cd <- session$clientData
-    pr <- if (is.null(cd$url_protocol)) "https:" else cd$url_protocol
-    hn <- if (is.null(cd$url_hostname)) "" else cd$url_hostname
-    pt <- if (is.null(cd$url_port)) "" else as.character(cd$url_port)
-    pn <- if (is.null(cd$url_pathname)) "/" else cd$url_pathname
-    q  <- .cur_q()
-    paste0(pr, "//", hn, if (nzchar(pt)) paste0(":", pt) else "", pn,
-           if (nzchar(q)) paste0("?", q) else "")
+    ## Links point to the lab-site page, which passes the query on to the app.
+    v <- tryCatch(session$clientData$url_search, error = function(e) "")
+    if (is.null(v)) v <- ""
+    v <- sub("^[?]", "", v)
+    paste0("https://wanggroup.org/xQTL-AD-loci-explorer/", if (nzchar(v)) paste0("?", v) else "")
   }
 
   .man_txt <- paste0(
